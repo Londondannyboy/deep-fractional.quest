@@ -2,15 +2,15 @@
 
 LangChain Deep Agents + CopilotKit for fractional executive job matching.
 
-## Status: Phase 2 In Progress
+## Status: Phase 2.4 Complete
 
 | Phase | Status |
 |-------|--------|
 | Phase 1: Core Setup | COMPLETE |
 | Phase 2.1: Pydantic Schemas | COMPLETE |
-| Phase 2.2: HITL Confirmation | IN PROGRESS |
-| Phase 2.3: Neon Persistence | Pending |
-| Phase 2.4: Neon Auth | Pending |
+| Phase 2.2: HITL Confirmation | COMPLETE |
+| Phase 2.3: Neon Persistence | COMPLETE |
+| Phase 2.4: Neon Auth | COMPLETE |
 | Phase 2.5: Job Search Agent | Pending |
 | Phase 2.6: Coaching Agent | Pending |
 
@@ -32,13 +32,6 @@ cd agent && uv run python main.py  # port 8123
 cd frontend && npm run dev  # port 3000
 ```
 
-## Documentation
-
-- [Article Breakdown](docs/ARTICLE_BREAKDOWN.md) - Reference implementation patterns
-- [Architecture](docs/ARCHITECTURE.md) - Multi-agent pattern
-- [PRD](docs/PRD.md) - Product requirements
-- [Checklist](docs/CHECKLIST.md) - Implementation progress
-
 ## Stack
 
 | Component | Technology |
@@ -47,84 +40,85 @@ cd frontend && npm run dev  # port 3000
 | State Sync | CopilotKit AG-UI protocol |
 | LLM | Gemini 2.0 Flash |
 | Database | Neon PostgreSQL |
-| Auth | Neon Auth (Better Auth) |
+| Auth | Neon Auth (`@neondatabase/auth`) |
 | Backend | FastAPI + uvicorn |
 | Frontend | Next.js 15 + React 19 |
 | Deploy | Railway (agent) + Vercel (frontend) |
 
-## Key Patterns
+## Key Files
 
-1. **Agent Creation**: Use `create_deep_agent()` with `CopilotKitMiddleware()`
-2. **Tools**: `@tool` decorator with `args_schema` (Pydantic), return `Dict` for state updates
-3. **Frontend Hook**: `useDefaultTool()` captures tool results
-4. **State Readable**: `useCopilotReadable()` syncs frontend state to agent
+**Agent:**
+- `agent/agent.py` - Deep Agents graph with `interrupt_on` for HITL
+- `agent/tools/onboarding.py` - 6 tools with Pydantic schemas + persistence
+- `agent/persistence/neon.py` - asyncpg client for Neon PostgreSQL
+- `agent/main.py` - FastAPI entrypoint
+
+**Frontend:**
+- `frontend/src/app/page.tsx` - CopilotKit UI + useHumanInTheLoop hooks
+- `frontend/src/app/layout.tsx` - NeonAuthUIProvider + CopilotKit wrapper
+- `frontend/src/lib/auth/client.ts` - Neon Auth client
+- `frontend/src/app/auth/[path]/page.tsx` - Auth pages (sign-in, sign-up)
+- `frontend/src/app/api/auth/[...path]/route.ts` - Auth API routes
 
 ## Environment Variables
 
-**Agent (.env):**
-```
-GOOGLE_API_KEY=...
-DATABASE_URL=postgresql://neondb_owner:...@ep-divine-waterfall-abig6fic-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require
-```
+**Railway (agent):**
+- `GOOGLE_API_KEY` - Gemini API key
+- `GOOGLE_MODEL` - gemini-2.0-flash
+- `DATABASE_URL` - Neon PostgreSQL connection string
 
-**Frontend (.env.local):**
-```
-LANGGRAPH_DEPLOYMENT_URL=https://agent-production-ccb0.up.railway.app
-```
+**Vercel (frontend):**
+- `LANGGRAPH_DEPLOYMENT_URL` - Railway agent URL
+- `NEON_AUTH_BASE_URL` - Neon Auth endpoint
 
-## Neon Database
+## Database Schema
 
-**Connection String:**
-```
-postgresql://neondb_owner:npg_h4SxyI8GrpzN@ep-divine-waterfall-abig6fic-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require
-```
+**Neon Project:** sweet-hat-02969611
 
-## Project Structure
+**Tables:**
+- `neon_auth.*` - Neon Auth tables (user, session, etc.)
+- `public.user_profiles` - Onboarding data
 
-```
-deep-fractional/
-├── CLAUDE.md              # This file
-├── docs/                  # Detailed documentation
-├── agent/                 # Python backend
-│   ├── main.py           # FastAPI entrypoint
-│   ├── agent.py          # Deep Agents graph
-│   ├── state.py          # State schemas
-│   └── tools/            # Tool definitions (Pydantic schemas)
-└── frontend/             # Next.js app
-    └── src/
-        ├── app/          # Routes + API
-        └── components/   # UI components
-```
-
-## HITL Implementation (Phase 2.2)
-
-Human-in-the-loop confirmation added:
-
-**Backend (`agent/agent.py`):**
-```python
-interrupt_on = {
-    "confirm_role_preference": True,
-    "confirm_trinity": True,
-    "confirm_experience": True,
-    "confirm_location": True,
-    "confirm_search_prefs": True,
-    "complete_onboarding": True,
-}
-
-agent_graph = create_deep_agent(
-    ...
-    interrupt_on=interrupt_on,  # HITL: pause for user confirmation
-)
+```sql
+CREATE TABLE public.user_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES neon_auth.user(id) ON DELETE CASCADE,
+    role_preference VARCHAR(50),
+    trinity VARCHAR(50),
+    experience_years INTEGER,
+    industries TEXT[],
+    location VARCHAR(255),
+    remote_preference VARCHAR(50),
+    day_rate_min INTEGER,
+    day_rate_max INTEGER,
+    availability VARCHAR(100),
+    onboarding_completed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id)
+);
 ```
 
-**Frontend (`frontend/src/app/page.tsx`):**
-- Uses `useHumanInTheLoop` hook from `@copilotkit/react-core`
-- Each onboarding tool has a colored confirmation card
-- User clicks "Confirm" to proceed or "Cancel" to reject
+## Key Patterns
 
-## Next Steps (Phase 2.3)
+1. **Agent Creation**: `create_deep_agent()` with `CopilotKitMiddleware()` + `interrupt_on`
+2. **Tools**: `@tool(args_schema=PydanticModel)`, accept optional `user_id` for persistence
+3. **HITL**: `useHumanInTheLoop` hooks render confirmation cards in chat
+4. **Auth**: `NeonAuthUIProvider` wraps app, `authClient.useSession()` gets user
+5. **State Sync**: `useCopilotReadable()` passes `user_id` + onboarding state to agent
 
-Add Neon persistence:
-1. Create `agent/persistence/neon.py` with asyncpg
-2. Create database schema for user profiles
-3. Update tools to persist data to Neon
+## Auth Flow
+
+1. User visits `/auth/sign-in` or `/auth/sign-up`
+2. Neon Auth handles email OTP verification
+3. Session stored, `UserButton` shows in header
+4. `authClient.useSession()` provides `user.id`
+5. `useCopilotReadable` passes `user_id` to agent
+6. Tools persist to `user_profiles` table when `user_id` present
+
+## Next Steps (Phase 2.5)
+
+Add Job Search Agent:
+1. Create `agent/tools/jobs.py` with search_jobs, match_jobs, save_job
+2. Add job-search-agent to subagents in agent.py
+3. Create jobs table in Neon
