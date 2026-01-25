@@ -3,10 +3,13 @@ Onboarding tools for Fractional Quest.
 
 Each tool confirms a piece of user profile information
 and returns state updates that sync to the frontend.
+
+Uses Pydantic schemas for input validation (args_schema).
 """
 
 from langchain.tools import tool
-from typing import Dict, Any, List
+from pydantic import BaseModel, Field, field_validator
+from typing import Dict, Any, List, Literal
 import json
 
 
@@ -17,7 +20,85 @@ VALID_REMOTE = ["remote", "hybrid", "onsite", "flexible"]
 VALID_AVAILABILITY = ["immediately", "1_month", "3_months", "flexible"]
 
 
-@tool
+# =============================================================================
+# Pydantic Input Schemas
+# =============================================================================
+
+class RolePreferenceInput(BaseModel):
+    """Input schema for confirm_role_preference tool."""
+    role: str = Field(
+        description="C-level role type: cto, cfo, cmo, coo, cpo, or other"
+    )
+
+    @field_validator("role")
+    @classmethod
+    def normalize_role(cls, v: str) -> str:
+        return v.lower().strip()
+
+
+class TrinityInput(BaseModel):
+    """Input schema for confirm_trinity tool."""
+    engagement_type: str = Field(
+        description="Engagement type: fractional, interim, advisory, or open"
+    )
+
+    @field_validator("engagement_type")
+    @classmethod
+    def normalize_type(cls, v: str) -> str:
+        return v.lower().strip()
+
+
+class ExperienceInput(BaseModel):
+    """Input schema for confirm_experience tool."""
+    years: int = Field(
+        description="Years of executive experience",
+        ge=0  # greater than or equal to 0
+    )
+    industries: str = Field(
+        description="Comma-separated list of industries (e.g., 'Tech, Finance, Gaming')"
+    )
+
+
+class LocationInput(BaseModel):
+    """Input schema for confirm_location tool."""
+    location: str = Field(
+        description="City/country (e.g., 'London', 'New York', 'Remote')"
+    )
+    remote_preference: str = Field(
+        description="Remote work preference: remote, hybrid, onsite, or flexible"
+    )
+
+    @field_validator("remote_preference")
+    @classmethod
+    def normalize_remote(cls, v: str) -> str:
+        return v.lower().strip()
+
+
+class SearchPrefsInput(BaseModel):
+    """Input schema for confirm_search_prefs tool."""
+    day_rate_min: int = Field(
+        description="Minimum day rate in GBP",
+        ge=0
+    )
+    day_rate_max: int = Field(
+        description="Maximum day rate in GBP",
+        ge=0
+    )
+    availability: str = Field(
+        description="Availability: immediately, 1_month, 3_months, or flexible"
+    )
+
+    @field_validator("availability")
+    @classmethod
+    def normalize_availability(cls, v: str) -> str:
+        return v.lower().strip()
+
+
+# =============================================================================
+# Tools with Pydantic Schemas
+# =============================================================================
+
+@tool(args_schema=RolePreferenceInput)
 def confirm_role_preference(role: str) -> Dict[str, Any]:
     """
     Confirm the C-level role preference.
@@ -45,7 +126,7 @@ def confirm_role_preference(role: str) -> Dict[str, Any]:
     }
 
 
-@tool
+@tool(args_schema=TrinityInput)
 def confirm_trinity(engagement_type: str) -> Dict[str, Any]:
     """
     Confirm the engagement type preference (fractional/interim/advisory).
@@ -73,7 +154,7 @@ def confirm_trinity(engagement_type: str) -> Dict[str, Any]:
     }
 
 
-@tool
+@tool(args_schema=ExperienceInput)
 def confirm_experience(years: int, industries: str) -> Dict[str, Any]:
     """
     Confirm experience level and industries.
@@ -103,7 +184,7 @@ def confirm_experience(years: int, industries: str) -> Dict[str, Any]:
     }
 
 
-@tool
+@tool(args_schema=LocationInput)
 def confirm_location(location: str, remote_preference: str) -> Dict[str, Any]:
     """
     Confirm location and remote work preference.
@@ -133,7 +214,7 @@ def confirm_location(location: str, remote_preference: str) -> Dict[str, Any]:
     }
 
 
-@tool
+@tool(args_schema=SearchPrefsInput)
 def confirm_search_prefs(
     day_rate_min: int,
     day_rate_max: int,
