@@ -120,6 +120,17 @@ def build_agent():
         # Phase 3: Add coaching-agent
     ]
 
+    # Define tools that require HITL confirmation
+    # Users should confirm before their profile data is saved
+    interrupt_on = {
+        "confirm_role_preference": True,
+        "confirm_trinity": True,
+        "confirm_experience": True,
+        "confirm_location": True,
+        "confirm_search_prefs": True,
+        "complete_onboarding": True,
+    }
+
     # Create the Deep Agents graph
     agent_graph = create_deep_agent(
         model=llm,
@@ -128,6 +139,7 @@ def build_agent():
         subagents=subagents,
         middleware=[CopilotKitMiddleware()],
         checkpointer=MemorySaver(),
+        interrupt_on=interrupt_on,  # HITL: pause for user confirmation
     )
 
     print("[AGENT] Deep Agents graph created")
