@@ -94,7 +94,8 @@ async def debug_info():
 def main():
     """Run the uvicorn server."""
     host = os.getenv("SERVER_HOST", "0.0.0.0")
-    port = int(os.getenv("SERVER_PORT", "8123"))
+    # Railway uses PORT, locally we use SERVER_PORT
+    port = int(os.getenv("PORT", os.getenv("SERVER_PORT", "8123")))
 
     print(f"[MAIN] Starting server on {host}:{port}")
 
