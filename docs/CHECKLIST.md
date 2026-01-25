@@ -61,18 +61,19 @@
 - [x] Add field_validator for normalization
 - [x] Deploy to Railway
 
-### 2.2 HITL Confirmation - IN PROGRESS
+### 2.2 HITL Confirmation - COMPLETE
 
 - [x] Add `interrupt_on` dict to create_deep_agent (maps tool names to interrupts)
 - [x] Update frontend with useHumanInTheLoop for all 6 onboarding tools
 - [x] Test HITL flow locally (both services build and start)
-- [ ] Deploy HITL to production
+- [x] Deploy HITL to production (commit efea085)
 
-### 2.3 Neon Persistence - PENDING
+### 2.3 Neon Persistence - IN PROGRESS
 
-- [ ] Create `agent/persistence/neon.py`
-- [ ] Create database schema (user_profile_items table)
-- [ ] Update tools to call persistence layer
+- [x] Create `agent/persistence/neon.py` with asyncpg client
+- [x] Create `agent/persistence/schema.sql` (user_profiles table)
+- [x] Update tools to call persistence layer (optional user_id param)
+- [ ] Create table in Neon (requires manual SQL or console)
 - [ ] Test persistence locally
 - [ ] Deploy to production
 
