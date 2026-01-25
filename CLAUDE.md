@@ -2,7 +2,7 @@
 
 LangChain Deep Agents + CopilotKit for fractional executive job matching.
 
-## Status: Phase 2.4 Complete
+## Status: Phase 2.5 Complete
 
 | Phase | Status |
 |-------|--------|
@@ -11,7 +11,7 @@ LangChain Deep Agents + CopilotKit for fractional executive job matching.
 | Phase 2.2: HITL Confirmation | COMPLETE |
 | Phase 2.3: Neon Persistence | COMPLETE |
 | Phase 2.4: Neon Auth | COMPLETE |
-| Phase 2.5: Job Search Agent | Pending |
+| Phase 2.5: Job Search Agent | COMPLETE |
 | Phase 2.6: Coaching Agent | Pending |
 
 ## Production URLs
@@ -50,7 +50,9 @@ cd frontend && npm run dev  # port 3000
 **Agent:**
 - `agent/agent.py` - Deep Agents graph with `interrupt_on` for HITL
 - `agent/tools/onboarding.py` - 6 tools with Pydantic schemas + persistence
+- `agent/tools/jobs.py` - 6 job search tools (search, match, save, get, update status)
 - `agent/persistence/neon.py` - asyncpg client for Neon PostgreSQL
+- `agent/migrations/002_create_jobs_tables.sql` - Jobs + saved_jobs schema
 - `agent/main.py` - FastAPI entrypoint
 
 **Frontend:**
@@ -78,8 +80,11 @@ cd frontend && npm run dev  # port 3000
 **Tables:**
 - `neon_auth.*` - Neon Auth tables (user, session, etc.)
 - `public.user_profiles` - Onboarding data
+- `public.jobs` - Job listings
+- `public.saved_jobs` - User saved jobs with status tracking
 
 ```sql
+-- User profiles (onboarding)
 CREATE TABLE public.user_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES neon_auth.user(id) ON DELETE CASCADE,
@@ -96,6 +101,39 @@ CREATE TABLE public.user_profiles (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id)
+);
+
+-- Job listings
+CREATE TABLE public.jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(255) NOT NULL,
+    company VARCHAR(255) NOT NULL,
+    role_type VARCHAR(50) NOT NULL,
+    engagement_type VARCHAR(50) NOT NULL,
+    description TEXT,
+    location VARCHAR(255),
+    remote_preference VARCHAR(50),
+    day_rate_min INTEGER,
+    day_rate_max INTEGER,
+    industries TEXT[],
+    requirements TEXT[],
+    experience_years_min INTEGER,
+    posted_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Saved jobs (user bookmarks + application tracking)
+CREATE TABLE public.saved_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES neon_auth.user(id) ON DELETE CASCADE,
+    job_id UUID NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE,
+    saved_at TIMESTAMPTZ DEFAULT NOW(),
+    notes TEXT,
+    status VARCHAR(50) DEFAULT 'saved',  -- saved, applied, interviewing, rejected, accepted
+    UNIQUE(user_id, job_id)
 );
 ```
 
@@ -116,9 +154,20 @@ CREATE TABLE public.user_profiles (
 5. `useCopilotReadable` passes `user_id` to agent
 6. Tools persist to `user_profiles` table when `user_id` present
 
-## Next Steps (Phase 2.5)
+## Job Search Tools (Phase 2.5)
 
-Add Job Search Agent:
-1. Create `agent/tools/jobs.py` with search_jobs, match_jobs, save_job
-2. Add job-search-agent to subagents in agent.py
-3. Create jobs table in Neon
+| Tool | Description | HITL |
+|------|-------------|------|
+| `search_jobs` | Search jobs with filters (role, location, rate, etc.) | No |
+| `match_jobs` | Find jobs matching user profile with scoring | No |
+| `save_job` | Save a job to user's list | Yes |
+| `get_saved_jobs` | Get user's saved jobs | No |
+| `update_job_status` | Update job status (applied, interviewing, etc.) | Yes |
+| `get_job_details` | Get full job details by ID | No |
+
+## Next Steps (Phase 2.6)
+
+Add Coaching Agent:
+1. Create `agent/tools/coaching.py` with find_coaches, schedule_session
+2. Add coaching-agent to subagents in agent.py
+3. Create coaches and coaching_sessions tables in Neon

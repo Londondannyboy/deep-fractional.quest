@@ -335,6 +335,102 @@ export default function Home() {
     },
   });
 
+  // HITL: Confirm saving a job
+  useHumanInTheLoop({
+    name: "save_job",
+    description: "Confirm saving a job to your list",
+    parameters: [
+      { name: "job_id", type: "string", description: "Job ID", required: true },
+      { name: "notes", type: "string", description: "Notes", required: false },
+    ],
+    render: ({ args, status, respond }) => {
+      if (status === "executing" && respond) {
+        return (
+          <div className="my-2 rounded-lg border-2 border-emerald-200 bg-emerald-50 p-4">
+            <div className="font-semibold text-emerald-900 mb-2">Save Job</div>
+            <p className="text-sm text-emerald-800 mb-3">
+              Save this job to your list?
+              {args.notes && (
+                <span className="block mt-1 text-xs">Notes: {args.notes as string}</span>
+              )}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => respond({ confirmed: true })}
+                className="px-3 py-1 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700"
+              >
+                Save Job
+              </button>
+              <button
+                onClick={() => respond({ confirmed: false })}
+                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        );
+      }
+      if (status === "complete") {
+        return <div className="text-xs text-gray-500 my-1">Job saved to your list</div>;
+      }
+      return <></>;
+    },
+  });
+
+  // HITL: Confirm updating job status
+  useHumanInTheLoop({
+    name: "update_job_status",
+    description: "Confirm updating job application status",
+    parameters: [
+      { name: "job_id", type: "string", description: "Job ID", required: true },
+      { name: "status", type: "string", description: "New status", required: true },
+      { name: "notes", type: "string", description: "Notes", required: false },
+    ],
+    render: ({ args, status, respond }) => {
+      if (status === "executing" && respond) {
+        const statusColors: Record<string, string> = {
+          applied: "bg-blue-600 hover:bg-blue-700",
+          interviewing: "bg-amber-600 hover:bg-amber-700",
+          accepted: "bg-green-600 hover:bg-green-700",
+          rejected: "bg-red-600 hover:bg-red-700",
+          saved: "bg-gray-600 hover:bg-gray-700",
+        };
+        const bgColor = statusColors[args.status as string] || "bg-gray-600 hover:bg-gray-700";
+
+        return (
+          <div className="my-2 rounded-lg border-2 border-amber-200 bg-amber-50 p-4">
+            <div className="font-semibold text-amber-900 mb-2">Update Job Status</div>
+            <p className="text-sm text-amber-800 mb-3">
+              Update status to <strong>{args.status as string}</strong>?
+              {args.notes && (
+                <span className="block mt-1 text-xs">Notes: {args.notes as string}</span>
+              )}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => respond({ confirmed: true })}
+                className={`px-3 py-1 text-white rounded text-sm ${bgColor}`}
+              >
+                Update Status
+              </button>
+              <button
+                onClick={() => respond({ confirmed: false })}
+                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        );
+      }
+      if (status === "complete") {
+        return <div className="text-xs text-gray-500 my-1">Job status updated</div>;
+      }
+      return <></>;
+    },
+  });
+
   const steps = [
     { key: "role_preference", label: "Role", value: onboarding.role_preference },
     { key: "trinity", label: "Type", value: onboarding.trinity },

@@ -16,6 +16,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from tools.onboarding import ONBOARDING_TOOLS
+from tools.jobs import JOB_TOOLS
 
 
 # =============================================================================
@@ -106,7 +107,7 @@ def build_agent():
     )
 
     # Define tools available to orchestrator
-    tools = ONBOARDING_TOOLS
+    tools = ONBOARDING_TOOLS + JOB_TOOLS
 
     # Define subagents
     subagents = [
@@ -116,19 +117,28 @@ def build_agent():
             "system_prompt": ONBOARDING_PROMPT,
             "tools": ONBOARDING_TOOLS,
         },
-        # Phase 2: Add job-search-agent
+        {
+            "name": "job-search-agent",
+            "description": "Helps users search for jobs, find matches, and manage saved opportunities",
+            "system_prompt": JOB_SEARCH_PROMPT,
+            "tools": JOB_TOOLS,
+        },
         # Phase 3: Add coaching-agent
     ]
 
     # Define tools that require HITL confirmation
     # Users should confirm before their profile data is saved
     interrupt_on = {
+        # Onboarding tools
         "confirm_role_preference": True,
         "confirm_trinity": True,
         "confirm_experience": True,
         "confirm_location": True,
         "confirm_search_prefs": True,
         "complete_onboarding": True,
+        # Job tools (saving and status updates)
+        "save_job": True,
+        "update_job_status": True,
     }
 
     # Create the Deep Agents graph
