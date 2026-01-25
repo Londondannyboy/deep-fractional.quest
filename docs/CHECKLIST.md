@@ -68,16 +68,16 @@
 - [x] Test HITL flow locally (both services build and start)
 - [x] Deploy HITL to production (commit efea085)
 
-### 2.3 Neon Persistence - IN PROGRESS
+### 2.3 Neon Persistence - COMPLETE
 
 - [x] Create `agent/persistence/neon.py` with asyncpg client
 - [x] Create `agent/persistence/schema.sql` (user_profiles table)
 - [x] Update tools to call persistence layer (optional user_id param)
-- [ ] Create table in Neon (requires manual SQL or console)
-- [ ] Test persistence locally
-- [ ] Deploy to production
+- [x] Create user_profiles table in Neon
+- [x] Add DATABASE_URL to Railway env vars
+- [x] Deploy to production
 
-### 2.4 Neon Auth - IN PROGRESS
+### 2.4 Neon Auth - COMPLETE
 
 - [x] Install @neondatabase/auth package
 - [x] Create auth client/server files (lib/auth/)
@@ -85,8 +85,8 @@
 - [x] Add NeonAuthUIProvider to layout
 - [x] Create auth pages (sign-in, sign-up, etc.)
 - [x] Pass userId to agent via useCopilotReadable
-- [ ] Add NEON_AUTH_BASE_URL to Vercel
-- [ ] Test authenticated flow in production
+- [x] Add NEON_AUTH_BASE_URL to Vercel (already set)
+- [x] Deploy to production
 
 ### 2.5 Job Search Agent - PENDING
 
