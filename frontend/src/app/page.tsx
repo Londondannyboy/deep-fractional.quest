@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { CopilotChat } from "@copilotkit/react-ui";
 import { useDefaultTool, useCopilotReadable, useHumanInTheLoop } from "@copilotkit/react-core";
+import { authClient } from "@/lib/auth/client";
 
 // Types matching backend state
 interface OnboardingState {
@@ -25,6 +26,10 @@ export default function Home() {
     completed: false,
   });
   const processedKeyRef = useRef<string | null>(null);
+
+  // Get authenticated user session
+  const { data: session } = authClient.useSession();
+  const userId = session?.user?.id;
 
   // Capture tool results and update state
   useDefaultTool({
@@ -71,10 +76,13 @@ export default function Home() {
     },
   });
 
-  // Make onboarding state readable to agent
+  // Make onboarding state and user ID readable to agent
   useCopilotReadable({
-    description: "Current onboarding progress and user profile",
-    value: onboarding,
+    description: "Current onboarding progress, user profile, and authenticated user ID",
+    value: {
+      ...onboarding,
+      user_id: userId,  // Pass authenticated user ID to agent for persistence
+    },
   });
 
   // HITL: Confirm role preference before saving

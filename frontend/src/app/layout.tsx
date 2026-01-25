@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { CopilotKit } from "@copilotkit/react-core";
+import { NeonAuthUIProvider, UserButton } from "@neondatabase/auth/react";
+import { authClient } from "@/lib/auth/client";
 import "./globals.css";
 import "@copilotkit/react-ui/styles.css";
+// Note: @neondatabase/auth/ui/tailwind requires Tailwind v4, using default styles instead
 
 export const metadata: Metadata = {
   title: "Fractional Quest | Deep Agents",
@@ -14,14 +17,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
-        <CopilotKit
-          runtimeUrl="/api/copilotkit"
-          agent="fractional_quest"
+        <NeonAuthUIProvider
+          authClient={authClient as any}
+          redirectTo="/"
+          emailOTP
         >
-          {children}
-        </CopilotKit>
+          <CopilotKit
+            runtimeUrl="/api/copilotkit"
+            agent="fractional_quest"
+          >
+            <header className="fixed top-0 right-0 p-4 z-50">
+              <UserButton size="icon" />
+            </header>
+            {children}
+          </CopilotKit>
+        </NeonAuthUIProvider>
       </body>
     </html>
   );

@@ -77,13 +77,16 @@
 - [ ] Test persistence locally
 - [ ] Deploy to production
 
-### 2.4 Neon Auth - PENDING
+### 2.4 Neon Auth - IN PROGRESS
 
-- [ ] Provision Neon Auth via MCP
-- [ ] Add auth client to frontend
-- [ ] Pass userId to agent via useCopilotReadable
-- [ ] Test authenticated flow
-- [ ] Deploy to production
+- [x] Install @neondatabase/auth package
+- [x] Create auth client/server files (lib/auth/)
+- [x] Set up API routes (api/auth/[...path])
+- [x] Add NeonAuthUIProvider to layout
+- [x] Create auth pages (sign-in, sign-up, etc.)
+- [x] Pass userId to agent via useCopilotReadable
+- [ ] Add NEON_AUTH_BASE_URL to Vercel
+- [ ] Test authenticated flow in production
 
 ### 2.5 Job Search Agent - PENDING
 
