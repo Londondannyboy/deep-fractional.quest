@@ -10,40 +10,40 @@
 - [x] Create docs/ARCHITECTURE.md
 - [x] Create docs/PRD.md
 - [x] Create docs/CHECKLIST.md
-- [ ] Set up UV project for agent/
-- [ ] Set up Next.js for frontend/
-- [ ] Initial commit and push
+- [x] Set up UV project for agent/
+- [x] Set up Next.js for frontend/
+- [x] Initial commit and push
 
 ## Phase 1: Onboarding Flow
 
 ### Backend (agent/)
 
-- [ ] `agent/pyproject.toml` - UV project config
-- [ ] `agent/state.py` - TypedDict state schemas
-- [ ] `agent/tools/__init__.py`
-- [ ] `agent/tools/onboarding.py` - 6 HITL tools
-  - [ ] `confirm_role_preference`
-  - [ ] `confirm_trinity`
-  - [ ] `confirm_experience`
-  - [ ] `confirm_location`
-  - [ ] `confirm_search_prefs`
-  - [ ] `complete_onboarding`
-- [ ] `agent/agent.py` - create_deep_agent with subagents
-- [ ] `agent/main.py` - FastAPI with AG-UI endpoint
-- [ ] `agent/.env` - Environment variables
-- [ ] Test agent locally (port 8123)
+- [x] `agent/pyproject.toml` - UV project config
+- [x] `agent/state.py` - TypedDict state schemas
+- [x] `agent/tools/__init__.py`
+- [x] `agent/tools/onboarding.py` - 6 HITL tools
+  - [x] `confirm_role_preference`
+  - [x] `confirm_trinity`
+  - [x] `confirm_experience`
+  - [x] `confirm_location`
+  - [x] `confirm_search_prefs`
+  - [x] `complete_onboarding`
+- [x] `agent/agent.py` - create_deep_agent with subagents
+- [x] `agent/main.py` - FastAPI with AG-UI endpoint
+- [x] `agent/.env` - Environment variables
+- [x] Test agent locally (port 8123)
 
 ### Frontend (frontend/)
 
-- [ ] `frontend/package.json` - Dependencies
-- [ ] `frontend/src/app/layout.tsx` - CopilotKit provider
-- [ ] `frontend/src/app/page.tsx` - Main UI
-- [ ] `frontend/src/app/api/copilotkit/route.ts` - CopilotKit runtime
-- [ ] `frontend/src/components/ChatPanel.tsx` - Chat with tool capture
-- [ ] `frontend/src/components/OnboardingProgress.tsx` - Step indicator
-- [ ] `frontend/src/components/ProfileCard.tsx` - Profile display
-- [ ] `frontend/.env.local` - LANGGRAPH_DEPLOYMENT_URL
-- [ ] Test frontend locally (port 3000)
+- [x] `frontend/package.json` - Dependencies
+- [x] `frontend/src/app/layout.tsx` - CopilotKit provider
+- [x] `frontend/src/app/page.tsx` - Main UI (includes chat, progress, profile)
+- [x] `frontend/src/app/api/copilotkit/route.ts` - CopilotKit runtime
+- [ ] `frontend/src/components/ChatPanel.tsx` - Chat with tool capture (integrated in page.tsx)
+- [ ] `frontend/src/components/OnboardingProgress.tsx` - Step indicator (integrated in page.tsx)
+- [ ] `frontend/src/components/ProfileCard.tsx` - Profile display (integrated in page.tsx)
+- [x] `frontend/.env.local` - LANGGRAPH_DEPLOYMENT_URL
+- [x] Test frontend locally (port 3000)
 
 ### Integration
 
