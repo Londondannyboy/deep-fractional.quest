@@ -260,21 +260,30 @@ async def confirm_role_preference(role: str, user_id: Optional[str] = None) -> D
         }
 
     # Persist to Neon if user_id provided - AWAIT to ensure write completes
+    persisted = False
     if user_id:
         client = _get_neon_client()
         if client:
             try:
                 await client.update_role_preference(user_id, normalized)
                 print(f"[TOOLS] Persisted role_preference={normalized} for user={user_id}")
+                persisted = True
             except Exception as e:
                 print(f"[TOOLS] Failed to persist role_preference: {e}")
+    else:
+        print(f"[TOOLS] No user_id provided - role_preference NOT persisted")
+
+    message = f"Great! I've noted your preference for {normalized.upper()} roles."
+    if not persisted:
+        message += " (Note: Sign in to save your preferences permanently)"
 
     return {
         "success": True,
         "role_preference": normalized,
         "current_step": 1,
         "next_step": "trinity",
-        "message": f"Great! I've noted your preference for {normalized.upper()} roles.",
+        "persisted": persisted,
+        "message": message,
     }
 
 
