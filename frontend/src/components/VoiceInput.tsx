@@ -104,6 +104,21 @@ function VoiceButton({ onMessage, firstName, userId, pageContext }: VoiceButtonP
       }
       const { accessToken } = await response.json();
 
+      // Fetch Zep context if user is logged in
+      let zepContext = "";
+      if (userId) {
+        try {
+          const zepRes = await fetch(`/api/zep-context?userId=${userId}`);
+          const zepData = await zepRes.json();
+          if (zepData.context) {
+            zepContext = zepData.context;
+            console.log("[VOICE] Zep context loaded:", zepData.facts?.length || 0, "facts");
+          }
+        } catch (e) {
+          console.warn("[VOICE] Failed to fetch Zep context:", e);
+        }
+      }
+
       // Detect if this is a quick reconnect (< 5 mins)
       const timeSinceLastInteraction = lastInteractionTime.current > 0
         ? Date.now() - lastInteractionTime.current
@@ -147,6 +162,7 @@ Help users with onboarding, finding jobs, and booking coaching sessions.
 
 ## USER PROFILE
 ${firstName ? `Name: ${firstName}` : 'Guest user'}
+${zepContext ? `\n### What I Remember About ${firstName || 'You'}:\n${zepContext}\n` : '\n### No prior history - this is their first visit.\n'}
 
 ${pageContextSection}
 
@@ -183,6 +199,7 @@ ${greetingInstruction}
 
       console.log("[VOICE] Got token, connecting with session:", customSessionId);
       console.log("[VOICE] Quick reconnect?", isQuickReconnect, "Was greeted?", wasGreeted);
+      console.log("[VOICE] User authenticated:", !!userId, "userId:", userId || 'anonymous');
 
       // Connect with token auth and session settings
       await connect({

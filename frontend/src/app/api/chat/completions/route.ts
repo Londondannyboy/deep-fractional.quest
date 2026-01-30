@@ -111,7 +111,11 @@ export async function POST(req: NextRequest) {
     const sessionParts = customSessionId.split('|');
     const firstName = sessionParts[0] || '';
     const sessionPart = sessionParts[1] || '';
-    const userId = sessionPart?.replace('deep_fractional_', '') || '';
+    const rawUserId = sessionPart?.replace('deep_fractional_', '') || '';
+
+    // Only treat as authenticated if userId is NOT anonymous (anonymous IDs start with 'anon_')
+    const isAuthenticated = rawUserId && !rawUserId.startsWith('anon_');
+    const userId = isAuthenticated ? rawUserId : '';
 
     // Parse page context if included (format: "location:London,jobs:25")
     const pageContextStr = sessionParts[2] || '';
@@ -131,7 +135,7 @@ export async function POST(req: NextRequest) {
     const lastUserMessage = userMessages[userMessages.length - 1]?.content || '';
 
     console.log('[CLM] Received from Hume:', lastUserMessage.slice(0, 100));
-    console.log('[CLM] User:', firstName || 'anonymous', 'Session:', sessionPart || 'none');
+    console.log('[CLM] User:', firstName || 'guest', 'Authenticated:', isAuthenticated, 'UserId:', userId || 'none');
 
     // Fetch Zep context if we have a user ID
     const zepContext = userId ? await getZepContext(userId) : '';
@@ -175,11 +179,15 @@ When users ask about jobs, USE THE search_jobs TOOL to find real jobs from the d
     });
 
     // Build the AG-UI request body
+    // IMPORTANT: user_id at top-level is required by agent tools for database persistence
     const agentRequestBody = {
       messages: aguiMessages,
       runId: `run_${Date.now()}`,
       threadId: sessionPart || `thread_${Date.now()}`,
       state: {
+        // user_id at top level for tool persistence (matches useCopilotReadable in chat UI)
+        user_id: userId || null,
+        user_name: firstName || null,
         jobs: [],
         search_query: '',
         user: userId ? { id: userId, name: firstName } : null,
@@ -192,6 +200,7 @@ When users ask about jobs, USE THE search_jobs TOOL to find real jobs from the d
     };
 
     console.log('[CLM] Calling DeepAgents at:', AGENT_URL);
+    console.log('[CLM] State user_id:', agentRequestBody.state.user_id || 'none (anonymous)');
 
     // Call the DeepAgents agent
     const agentResponse = await fetch(AGENT_URL, {
@@ -214,7 +223,9 @@ When users ask about jobs, USE THE search_jobs TOOL to find real jobs from the d
     console.log('[CLM] Agent response:', responseText.slice(0, 100));
 
     // Store conversation to Zep in real-time (backup to webhook)
+    // Only store for authenticated users (userId is empty for anonymous)
     if (userId && ZEP_API_KEY) {
+      console.log('[CLM] Storing to Zep for authenticated user:', userId);
       try {
         // Store user message
         await fetch('https://api.getzep.com/api/v2/sessions', {
@@ -246,6 +257,8 @@ When users ask about jobs, USE THE search_jobs TOOL to find real jobs from the d
       } catch (e) {
         console.warn('[CLM] Failed to store to Zep:', e);
       }
+    } else if (!userId) {
+      console.log('[CLM] Skipping Zep storage for anonymous user');
     }
 
     // Return OpenAI-compatible response for Hume

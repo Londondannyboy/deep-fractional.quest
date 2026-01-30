@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { CopilotKit } from "@copilotkit/react-core";
-import { NeonAuthUIProvider, UserButton } from "@neondatabase/auth/react";
-import { authClient } from "@/lib/auth/client";
+import { UserButton } from "@neondatabase/auth/react";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 import "@copilotkit/react-ui/styles.css";
 import "@neondatabase/auth-ui/css";
@@ -19,12 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
-        <NeonAuthUIProvider
-          authClient={authClient as any}
-          redirectTo="/"
-          emailOTP
-          socialProviders={["google"]}
-        >
+        <Providers>
           <CopilotKit
             runtimeUrl="/api/copilotkit"
             agent="fractional_quest"
@@ -34,7 +29,7 @@ export default function RootLayout({
             </header>
             {children}
           </CopilotKit>
-        </NeonAuthUIProvider>
+        </Providers>
       </body>
     </html>
   );

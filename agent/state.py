@@ -52,6 +52,12 @@ class AgentState(TypedDict, total=False):
     Extends with CopilotKit state fields automatically
     via CopilotKitMiddleware.
     """
+    # User identity at top level for easy tool access
+    # (also available via useCopilotReadable in frontend)
+    user_id: Optional[str]
+    user_name: Optional[str]
+
+    # Nested states
     onboarding: OnboardingState
     user: UserState
     page_context: PageContext
