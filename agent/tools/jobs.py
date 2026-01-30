@@ -4,6 +4,11 @@ Job search tools for Fractional Quest.
 Provides tools for searching, matching, and saving job opportunities.
 Uses Pydantic schemas for input validation (args_schema).
 Persists to Neon PostgreSQL when user_id is provided.
+
+Implements HYBRID SEARCH pattern:
+1. Query database first (instant, free)
+2. Query Tavily for fresh results (1-2 sec, costs credits)
+3. Auto-save Tavily results to database for future queries
 """
 
 import asyncio
@@ -11,6 +16,9 @@ from langchain.tools import tool
 from pydantic import BaseModel, Field, field_validator
 from typing import Dict, Any, List, Optional
 import json
+
+# Tavily integration for web search
+from tools.tavily_search import search_and_save_jobs as tavily_search
 
 
 # Persistence helper (lazy import to avoid startup issues)
@@ -183,6 +191,43 @@ class GetJobDetailsInput(BaseModel):
     job_id: str = Field(
         description="UUID of the job to get details for"
     )
+
+
+class HybridSearchInput(BaseModel):
+    """Input schema for hybrid_search_jobs tool (database + Tavily)."""
+    query: Optional[str] = Field(
+        default=None,
+        description="Free-text search query for additional context"
+    )
+    role_type: Optional[str] = Field(
+        default=None,
+        description="C-level role type: cto, cfo, cmo, coo, cpo"
+    )
+    engagement_type: Optional[str] = Field(
+        default=None,
+        description="Engagement type: fractional, interim, advisory"
+    )
+    location: Optional[str] = Field(
+        default=None,
+        description="Location to search in (city or 'Remote')"
+    )
+    include_web_search: bool = Field(
+        default=True,
+        description="Whether to include Tavily web search for fresh results"
+    )
+    limit: int = Field(
+        default=10,
+        description="Maximum results per source (database and web)",
+        ge=1,
+        le=20
+    )
+
+    @field_validator("role_type")
+    @classmethod
+    def normalize_role(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            return v.lower().strip()
+        return v
 
 
 # =============================================================================
@@ -454,9 +499,109 @@ def get_job_details(job_id: str) -> Dict[str, Any]:
     }
 
 
+@tool(args_schema=HybridSearchInput)
+def hybrid_search_jobs(
+    query: Optional[str] = None,
+    role_type: Optional[str] = None,
+    engagement_type: Optional[str] = None,
+    location: Optional[str] = None,
+    include_web_search: bool = True,
+    limit: int = 10
+) -> Dict[str, Any]:
+    """
+    HYBRID JOB SEARCH: Searches both database AND web for comprehensive results.
+
+    This is the PREFERRED search tool - use this instead of search_jobs for best results.
+
+    Flow:
+    1. First queries database (instant, free) - returns saved/cached jobs
+    2. Then queries Tavily web search (1-2 sec) - returns fresh job postings
+    3. Auto-saves new Tavily results to database for future queries
+    4. Deduplicates and returns combined results
+
+    Args:
+        query: Free-text search (e.g., "fintech", "AI startup")
+        role_type: C-level role (cto, cfo, cmo, coo, cpo)
+        engagement_type: Engagement type (fractional, interim, advisory)
+        location: City or "Remote"
+        include_web_search: Set False to only search database (faster, no cost)
+        limit: Max results per source (default 10)
+
+    Returns:
+        Combined results from database and web with source labels
+    """
+    results = {
+        "success": True,
+        "database_jobs": [],
+        "web_jobs": [],
+        "total_count": 0,
+        "sources": [],
+    }
+
+    # 1. Search database first (always)
+    client = _get_neon_client()
+    if client:
+        db_jobs = _run_async(client.search_jobs(
+            role_type=role_type,
+            engagement_type=engagement_type,
+            location=location,
+            limit=limit
+        ))
+        if db_jobs:
+            # Mark source
+            for job in db_jobs:
+                job["source"] = "database"
+            results["database_jobs"] = db_jobs
+            results["sources"].append("database")
+
+    # 2. Search Tavily if enabled
+    if include_web_search:
+        try:
+            tavily_results = _run_async(tavily_search(
+                query=query or "",
+                role_type=role_type,
+                location=location,
+                engagement_type=engagement_type,
+                max_results=limit,
+                neon_client=client,  # Auto-save to DB
+            ))
+
+            if tavily_results and tavily_results.get("success"):
+                web_jobs = tavily_results.get("jobs", [])
+                results["web_jobs"] = web_jobs
+                results["sources"].append("tavily")
+                results["web_answer"] = tavily_results.get("answer")
+                results["saved_to_db"] = tavily_results.get("saved_to_db", 0)
+
+        except Exception as e:
+            print(f"[HYBRID] Tavily search failed: {e}")
+            results["web_error"] = str(e)
+
+    # 3. Calculate totals
+    db_count = len(results["database_jobs"])
+    web_count = len(results["web_jobs"])
+    results["total_count"] = db_count + web_count
+    results["database_count"] = db_count
+    results["web_count"] = web_count
+
+    # 4. Build user-friendly message
+    messages = []
+    if db_count > 0:
+        messages.append(f"Found {db_count} jobs in our database")
+    if web_count > 0:
+        messages.append(f"found {web_count} fresh results from the web")
+        if results.get("saved_to_db", 0) > 0:
+            messages.append(f"(saved {results['saved_to_db']} new jobs for future searches)")
+
+    results["message"] = " and ".join(messages) if messages else "No jobs found matching your criteria."
+
+    return results
+
+
 # Export all tools as a list
 JOB_TOOLS = [
     search_jobs,
+    hybrid_search_jobs,  # NEW: Preferred search with database + Tavily
     match_jobs,
     save_job,
     get_saved_jobs,

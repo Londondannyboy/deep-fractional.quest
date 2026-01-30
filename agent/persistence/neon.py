@@ -169,6 +169,64 @@ class NeonClient:
                 return result
             return None
 
+    async def get_job_by_url(self, url: str) -> dict[str, Any] | None:
+        """Get a job by URL (for deduplication)."""
+        async with self.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT * FROM jobs WHERE url = $1
+                """,
+                url,
+            )
+            if row:
+                result = dict(row)
+                result["id"] = str(result["id"])
+                return result
+            return None
+
+    async def create_job(
+        self,
+        title: str,
+        company: str,
+        description: str = "",
+        url: str = "",
+        role_type: str | None = None,
+        engagement_type: str | None = None,
+        location: str | None = None,
+        remote_preference: str | None = None,
+        day_rate_min: int | None = None,
+        day_rate_max: int | None = None,
+        industries: list[str] | None = None,
+        source: str = "manual",
+    ) -> dict[str, Any]:
+        """Create a new job posting (used for Tavily results)."""
+        async with self.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO jobs (
+                    title, company, description, url,
+                    role_type, engagement_type, location, remote_preference,
+                    day_rate_min, day_rate_max, industries, source, is_active
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)
+                RETURNING *
+                """,
+                title,
+                company,
+                description,
+                url,
+                role_type.lower() if role_type else None,
+                engagement_type.lower() if engagement_type else None,
+                location,
+                remote_preference.lower() if remote_preference else None,
+                day_rate_min,
+                day_rate_max,
+                industries or [],
+                source,
+            )
+            result = dict(row)
+            result["id"] = str(result["id"])
+            return result
+
     async def search_jobs(
         self,
         role_type: str | None = None,
