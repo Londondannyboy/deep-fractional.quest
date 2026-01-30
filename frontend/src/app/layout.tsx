@@ -4,7 +4,7 @@ import { NeonAuthUIProvider, UserButton } from "@neondatabase/auth/react";
 import { authClient } from "@/lib/auth/client";
 import "./globals.css";
 import "@copilotkit/react-ui/styles.css";
-import "@neondatabase/auth-ui/dist/style.css";
+import "@neondatabase/auth-ui/css";
 
 export const metadata: Metadata = {
   title: "Fractional Quest | Deep Agents",
