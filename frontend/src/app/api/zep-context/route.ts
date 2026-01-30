@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const ZEP_API_KEY = process.env.ZEP_API_KEY || '';
-// Graph name for Zep knowledge graph - set in Vercel/Railway env vars
-const ZEP_GRAPH_NAME = process.env.ZEP_GRAPH_NAME || 'fractional-jobs-graph';
+// Graph name for Zep knowledge graph - set in Vercel env vars as ZEP_GRAPH
+const ZEP_GRAPH_NAME = process.env.ZEP_GRAPH || process.env.ZEP_GRAPH_NAME || 'fractional-jobs-graph';
 
 // Categorize a fact into ontological type
 function categorize(fact: string, edgeName?: string): 'role' | 'location' | 'skill' | 'interest' | 'experience' | 'fact' {

@@ -48,7 +48,7 @@ function VoiceButton({ onMessage, firstName, userId, pageContext }: VoiceButtonP
   const { connect, disconnect, status, messages, sendUserInput } = useVoice();
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const lastProcessedIndex = useRef(-1);
+  const lastSentMsgId = useRef<string | null>(null);
 
   // Use sessionStorage-backed refs for persistence across remounts
   const greetedThisSession = useRef(getSessionValue(SESSION_GREETED_KEY, false) as boolean);
@@ -61,34 +61,34 @@ function VoiceButton({ onMessage, firstName, userId, pageContext }: VoiceButtonP
 
   // Forward BOTH user AND assistant messages to CopilotKit for full context
   useEffect(() => {
-    if (!onMessage || messages.length === 0) return;
+    // Get all conversation messages (user + assistant)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const conversationMsgs = messages.filter(
+      (m: any) => (m.type === "user_message" || m.type === "assistant_message") && m.message?.content
+    );
 
-    // Process new messages only
-    for (let i = lastProcessedIndex.current + 1; i < messages.length; i++) {
-      const msg = messages[i];
+    if (conversationMsgs.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const lastMsg = conversationMsgs[conversationMsgs.length - 1] as any;
+      const msgId = lastMsg?.id || `${conversationMsgs.length}-${lastMsg?.message?.content?.slice(0, 20)}`;
 
-      if (msg.type === "user_message") {
-        const content = (msg as unknown as { message?: { content?: string } }).message?.content;
-        if (content) {
-          console.log("[VOICE] Forwarding user to CopilotKit:", content.slice(0, 50));
-          onMessage(content, "user");
-          const now = Date.now();
-          lastInteractionTime.current = now;
-          setSessionValue(SESSION_LAST_INTERACTION_KEY, now);
-        }
-      } else if (msg.type === "assistant_message") {
-        const content = (msg as unknown as { message?: { content?: string } }).message?.content;
-        if (content) {
-          console.log("[VOICE] Forwarding assistant to CopilotKit:", content.slice(0, 50));
-          onMessage(content, "assistant");
-          const now = Date.now();
-          lastInteractionTime.current = now;
-          setSessionValue(SESSION_LAST_INTERACTION_KEY, now);
+      // Only send if this is a new message we haven't sent before
+      if (lastMsg?.message?.content && msgId !== lastSentMsgId.current) {
+        const isUser = lastMsg.type === "user_message";
+        console.log(`[VOICE] Forwarding ${isUser ? 'user' : 'assistant'} to CopilotKit:`, lastMsg.message.content.slice(0, 50));
+        lastSentMsgId.current = msgId;
+
+        // Update interaction time
+        const now = Date.now();
+        lastInteractionTime.current = now;
+        setSessionValue(SESSION_LAST_INTERACTION_KEY, now);
+
+        // Forward FULL content to CopilotKit with role indicator
+        if (onMessage) {
+          onMessage(lastMsg.message.content, isUser ? "user" : "assistant");
         }
       }
     }
-
-    lastProcessedIndex.current = messages.length - 1;
   }, [messages, onMessage]);
 
   // Connect to Hume
@@ -243,7 +243,7 @@ ${greetingInstruction}
     lastInteractionTime.current = now;
     setSessionValue(SESSION_LAST_INTERACTION_KEY, now);
     disconnect();
-    lastProcessedIndex.current = -1;
+    lastSentMsgId.current = null;
   }, [disconnect]);
 
   // Determine button state
