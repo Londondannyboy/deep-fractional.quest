@@ -1,208 +1,322 @@
-# Deep Fractional
+# Deep Fractional - Comprehensive Project Guide
 
-LangChain Deep Agents + CopilotKit for fractional executive job matching.
+## What Is This Project?
 
-## Status: Phase 4.1 In Progress (70% Complete)
+**Deep Fractional** is a production AI career platform for fractional executives (CTO, CFO, CMO, COO, CPO) to find fractional, interim, and advisory roles through conversational AI with voice support.
 
-| Phase | Status |
-|-------|--------|
-| Phase 1: Core Setup | COMPLETE |
-| Phase 2.1: Pydantic Schemas | COMPLETE |
-| Phase 2.2: HITL Confirmation | COMPLETE |
-| Phase 2.3: Neon Persistence | COMPLETE |
-| Phase 2.4: Neon Auth | COMPLETE |
-| Phase 2.5: Job Search Agent | COMPLETE |
-| Phase 2.6: Coaching Agent | COMPLETE (code) |
-| Phase 2.7: PostgreSQL Checkpointer | COMPLETE |
-| Phase 3: Hume EVI Voice | COMPLETE |
-| Phase 4.1: Voice + User Identity | 70% COMPLETE |
-| Phase 4.2: Middleware | IN PROGRESS |
+**Repository:** https://github.com/Londondannyboy/deep-fractional.quest
+**Live Frontend:** https://deep-fractional-web.vercel.app
+**Live Agent:** https://agent-production-ccb0.up.railway.app
 
-**Assessment Score: 6/10** - See RESTART_PROMPT.md for detailed progress
+---
 
-## Production URLs
+## Why This Architecture? (Christian Bromann's Patterns)
 
-| Service | URL |
-|---------|-----|
-| Frontend (Vercel) | https://deep-fractional-web.vercel.app |
-| Agent (Railway) | https://agent-production-ccb0.up.railway.app |
-| GitHub | https://github.com/Londondannyboy/deep-fractional.quest |
+This project implements production-ready AI agent patterns from **Christian Bromann**, a LangChain Engineer who wrote the definitive guide on building frontends for LangGraph Deep Agents with CopilotKit.
 
-## Quick Start
+**Reference Article:** https://dev.to/copilotkit/how-to-build-a-frontend-for-langchain-deep-agents-with-copilotkit-52kd
 
-```bash
-# Agent (Python)
-cd agent && uv run python main.py  # port 8123
+**Key principles we're following:**
 
-# Frontend (Next.js)
-cd frontend && npm run dev  # port 3000
+1. **Deep Agents over manual StateGraph** - Use `create_deep_agent()` which handles orchestration automatically
+2. **Human-in-the-Loop (HITL)** - Users must confirm before data persists (with countdown timers)
+3. **Middleware for safety** - Summarization (token reduction), Tool Call Limits (prevent runaway costs)
+4. **State sync via AG-UI** - CopilotKit's protocol for real-time frontend updates
+5. **Checkpointing** - PostgreSQL persistence for conversation continuity
+6. **Memory separation** - Confirmed data (Neon) vs mentioned facts (Zep)
+
+---
+
+## Project Structure
+
+```
+deep-fractional.quest/
+├── CLAUDE.md              # THIS FILE - project guide for Claude sessions
+├── RESTART_PROMPT.md      # Detailed session continuity (code changes, next steps)
+├── docs/
+│   ├── PRD.md             # Product requirements, validation values
+│   ├── ARCHITECTURE.md    # System design details
+│   └── ARTICLE_BREAKDOWN.md # Christian's patterns reference
+├── agent/                 # Python backend (Railway)
+│   ├── agent.py           # Deep Agents orchestrator + 3 subagents
+│   ├── state.py           # TypedDict state schemas
+│   ├── main.py            # FastAPI entrypoint
+│   ├── tools/             # 20 tools across 4 categories
+│   └── persistence/       # Neon client, checkpointer
+└── frontend/              # Next.js 15 (Vercel)
+    ├── src/app/           # Pages and API routes
+    └── src/components/    # UI components (VoiceInput, HITLCard, etc.)
 ```
 
-## Stack
+---
 
-| Component | Technology |
-|-----------|------------|
-| Agent Framework | LangChain Deep Agents (`create_deep_agent()`) |
-| State Sync | CopilotKit AG-UI protocol |
-| LLM | Gemini 2.0 Flash |
-| Database | Neon PostgreSQL |
-| Auth | Neon Auth (Google OAuth + Email OTP) |
-| Checkpointer | AsyncPostgresSaver (langgraph-checkpoint-postgres) |
-| Memory | Zep Cloud (cross-session facts/preferences) |
-| Voice | Hume EVI (@humeai/voice-react) |
-| Backend | FastAPI + uvicorn |
-| Frontend | Next.js 15 + React 19 |
-| Deploy | Railway (agent) + Vercel (frontend) |
+## Document Hierarchy
 
-## Key Files
+| Document | When to Read | What It Contains |
+|----------|--------------|------------------|
+| **CLAUDE.md** (this) | Every session start | Project overview, architecture, quick reference |
+| **RESTART_PROMPT.md** | Continuing Phase 4 work | Detailed session progress, code snippets, next steps |
+| **docs/PRD.md** | Understanding requirements | User journey, validation values, tool schemas |
+| **docs/ARCHITECTURE.md** | Deep technical context | Component diagrams, data flows |
 
-**Agent:**
-- `agent/agent.py` - Deep Agents graph with 3 subagents + HITL
-- `agent/state.py` - TypedDict state schemas (user_id at top level)
-- `agent/tools/onboarding.py` - 6 onboarding tools
-- `agent/tools/jobs.py` - 6 job search tools
-- `agent/tools/coaching.py` - 5 coaching tools
-- `agent/tools/memory.py` - Zep memory integration
-- `agent/persistence/neon.py` - asyncpg client for Neon PostgreSQL
-- `agent/persistence/checkpointer.py` - PostgreSQL checkpointer
-- `agent/main.py` - FastAPI entrypoint with lifespan
+---
 
-**Frontend (New/Updated in Phase 4):**
-- `frontend/src/components/HITLCard.tsx` - HITL countdown timer card (NEW)
-- `frontend/src/components/ProfileSidebar.tsx` - Confirmed DB state display (NEW)
-- `frontend/src/components/providers.tsx` - NeonAuthUIProvider with Google OAuth (NEW)
-- `frontend/src/app/api/zep-context/route.ts` - Zep memory fetch endpoint (NEW)
-- `frontend/src/app/page.tsx` - Main UI + HITL hooks + ProfileSidebar
-- `frontend/src/app/layout.tsx` - Providers wrapper
-- `frontend/src/components/VoiceInput.tsx` - Hume EVI + Zep context
-- `frontend/src/app/api/chat/completions/route.ts` - CLM endpoint (user_id extraction)
-- `frontend/src/app/api/hume-token/route.ts` - Hume OAuth2 token
+## Current Status
 
-## Data Architecture
+### Phase Progress
 
-**Neon (Database) = Confirmed Data**
-- `user_profiles` table stores HITL-confirmed preferences
-- Data is authoritative and persisted after user confirmation
+| Phase | Status | What It Covers |
+|-------|--------|----------------|
+| Phase 1 | COMPLETE | Core agent deployed to production |
+| Phase 2.1 | COMPLETE | Pydantic schemas on all tools |
+| Phase 2.2 | COMPLETE | HITL confirmation flow (11 hooks) |
+| Phase 2.3 | COMPLETE | Neon PostgreSQL persistence |
+| Phase 2.4 | COMPLETE | Neon Auth (Google OAuth + Email OTP) |
+| Phase 2.5 | COMPLETE | Job Search Agent (6 tools) |
+| Phase 2.6 | COMPLETE | Coaching Agent (5 tools, needs DB migration) |
+| Phase 2.7 | COMPLETE | PostgreSQL Checkpointer |
+| Phase 3 | COMPLETE | Hume EVI Voice integration |
+| **Phase 4.1** | **70%** | Voice + User Identity |
+| **Phase 4.2** | **IN PROGRESS** | Middleware (Summarization, Tool Limits) |
 
-**Zep (Knowledge Graph) = Mentioned Facts**
-- Stores facts/preferences mentioned in conversation
-- Cross-session memory for voice context enrichment
+**Assessment Score: 6/10** against Christian's production patterns
 
-## Key Patterns (Christian Bromann's Approach)
+### What's Been Done in Phase 4
 
-1. **Agent Creation**: `create_deep_agent()` with `CopilotKitMiddleware()` + `interrupt_on`
-2. **Subagents**: onboarding-agent, job-search-agent, coaching-agent
-3. **Tools**: `@tool(args_schema=PydanticModel)`, accept `user_id` for persistence
-4. **HITL**: `interrupt_on` dict + `HITLCard` component with countdown timer
-5. **User Identity**: `user_id` at top level of state, flows from Neon Auth -> Voice -> Agent
-6. **Checkpointer**: `AsyncPostgresSaver` persists conversations
-7. **Memory**: Zep stores cross-session facts, enriches voice prompts
-8. **Auth**: `NeonAuthUIProvider` with Google OAuth
-9. **State Sync**: `useCopilotReadable()` + `ProfileSidebar` visualization
+- Voice + User Identity flow (user_id flows from Neon Auth -> Hume -> Agent)
+- Google OAuth added to Neon Auth
+- Voice to CopilotKit message sync fixed
+- Zep context integration (voice gets user memory)
+- HITLCard component (countdown timer, pause on hover)
+- ProfileSidebar component (shows confirmed DB state)
 
-## Phase 4 Progress
+### What's Next
 
-### Completed
-- Voice + User Identity flow (VoiceInput -> CLM -> Agent)
-- Google OAuth in Neon Auth
-- Voice to CopilotKit message sync fix
-- Zep context integration for voice
-- HITL countdown timer (HITLCard component)
-- Profile sidebar visualization (confirmed DB state)
+1. **Summarization Middleware** (HIGH) - 75% token reduction for long conversations
+2. **Tool Call Limit Middleware** (HIGH) - Prevent runaway costs
+3. Voice/Chat context sharing
+4. Voice HITL announcements
+5. Update remaining HITL hooks with HITLCard
 
-### In Progress
-- Summarization Middleware (75% token reduction)
+**See `RESTART_PROMPT.md` for implementation details and code examples.**
 
-### Remaining
-- Tool Call Limit Middleware
-- Voice/Chat context sharing
-- Voice HITL announcements
-- Update remaining HITL hooks with HITLCard
-- `useCoAgentStateRender` for live state display
-- `copilotkitEmitState` for progress updates
+---
 
-## Environment Variables
+## Architecture
 
-**Railway (agent):**
-- `GOOGLE_API_KEY` - Gemini API key
-- `GOOGLE_MODEL` - gemini-2.0-flash
-- `DATABASE_URL` - Neon PostgreSQL connection string
-- `ZEP_API_KEY` - Zep Cloud API key
-- `ZEP_GRAPH` - fractional-jobs-graph
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         FRONTEND (Vercel - Next.js 15)                  │
+│                                                                         │
+│  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐       │
+│  │  CopilotChat    │   │   VoiceInput    │   │   NeonAuthUI    │       │
+│  │  (sidebar)      │   │   (Hume EVI)    │   │ (Google OAuth)  │       │
+│  │                 │   │                 │   │                 │       │
+│  │ useHumanInTheLoop   │ Zep context     │   │ useSession()    │       │
+│  │ ProfileSidebar  │   │ appendMessage() │   │                 │       │
+│  │ HITLCard        │   │                 │   │                 │       │
+│  └────────┬────────┘   └────────┬────────┘   └────────┬────────┘       │
+│           │                     │                      │                │
+│           ▼                     ▼                      │                │
+│  ┌─────────────────┐   ┌─────────────────┐            │                │
+│  │ /api/copilotkit │   │ /api/hume-token │            │                │
+│  │ /api/zep-context│   │ /api/chat/completions (CLM)  │                │
+│  └────────┬────────┘   └─────────────────┘            │                │
+└───────────┼───────────────────────────────────────────┼────────────────┘
+            │                                           │
+            ▼                                           ▼
+┌───────────────────────────────────────┐   ┌───────────────────────────┐
+│     DeepAgents (Railway - FastAPI)    │   │    Neon PostgreSQL        │
+│                                       │   │                           │
+│  ┌─────────────────────────────────┐  │   │  user_profiles (confirmed)│
+│  │         ORCHESTRATOR            │  │   │  jobs                     │
+│  │   (routes to subagents)         │  │   │  saved_jobs               │
+│  │   user_id at state top level    │  │   │  coaches                  │
+│  └─────────────┬───────────────────┘  │   │  coaching_sessions        │
+│                │                      │   │  checkpoint_* (auto)      │
+│   ┌────────────┼────────────┐        │   │  neon_auth.* (auto)       │
+│   ▼            ▼            ▼        │   └───────────────────────────┘
+│ ┌─────┐    ┌─────┐    ┌─────────┐   │
+│ │Onb. │    │Jobs │    │Coaching │   │   ┌───────────────────────────┐
+│ │Agent│    │Agent│    │Agent    │   │   │      Zep Cloud            │
+│ └──┬──┘    └──┬──┘    └────┬────┘   │   │  (cross-session memory)   │
+│    │          │            │         │   │  (mentioned facts)        │
+│    ▼          ▼            ▼         │   └───────────────────────────┘
+│  6 tools    6 tools     5 tools      │
+│  + HITL     + HITL      + HITL       │   ┌───────────────────────────┐
+│                                       │   │     Hume EVI Cloud        │
+│  CopilotKitMiddleware                │◄──│   (voice interface)       │
+│  AsyncPostgresSaver (checkpointer)   │   └───────────────────────────┘
+│  Gemini 2.0 Flash                    │
+└───────────────────────────────────────┘
+```
 
-**Vercel (frontend):**
-- `LANGGRAPH_DEPLOYMENT_URL` - Railway agent URL
-- `NEON_AUTH_BASE_URL` - Neon Auth endpoint
-- `HUME_API_KEY` - Hume API key (server-side)
-- `HUME_SECRET_KEY` - Hume secret key (server-side)
-- `NEXT_PUBLIC_HUME_CONFIG_ID` - Hume EVI config ID
-- `ZEP_API_KEY` - Zep Cloud API key
-- `ZEP_GRAPH` - fractional-jobs-graph
+### Data Architecture
 
-## Database Schema
+| Storage | Purpose | Example |
+|---------|---------|---------|
+| **Neon PostgreSQL** | Confirmed data (HITL-approved) | User confirms "CTO" role → saved to `user_profiles` |
+| **Zep Cloud** | Mentioned facts (conversation context) | User says "I'm interested in fintech" → stored in Zep graph |
 
-**Neon Project:** sweet-hat-02969611
+---
 
-**Tables:**
-- `neon_auth.*` - Neon Auth tables (user, session, etc.)
-- `public.user_profiles` - Onboarding data
-- `public.jobs` - Job listings
-- `public.saved_jobs` - User saved jobs with status tracking
-- `public.coaches` - Executive coach profiles
-- `public.coaching_sessions` - User coaching session bookings
-- `checkpoint_*` - LangGraph checkpointer tables (auto-created)
+## Tech Stack
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Agent Framework | LangChain Deep Agents | `create_deep_agent()` with subagents |
+| State Sync | CopilotKit AG-UI | Real-time frontend updates |
+| LLM | Gemini 2.0 Flash | Fast, capable, cost-effective |
+| Database | Neon PostgreSQL | Confirmed user data |
+| Auth | Neon Auth | Google OAuth + Email OTP |
+| Checkpointer | AsyncPostgresSaver | Conversation persistence |
+| Memory | Zep Cloud | Cross-session facts/preferences |
+| Voice | Hume EVI | Emotional voice interface |
+| Backend | FastAPI + uvicorn | Python agent server |
+| Frontend | Next.js 15 + React 19 | Modern React with App Router |
+| Deploy | Railway + Vercel | Agent + Frontend hosting |
+
+---
+
+## Key Patterns
+
+### 1. Deep Agents Creation
+```python
+# agent/agent.py
+agent_graph = create_deep_agent(
+    model=llm,
+    system_prompt=ORCHESTRATOR_PROMPT,
+    tools=all_tools,
+    subagents=[onboarding_agent, job_search_agent, coaching_agent],
+    middleware=[CopilotKitMiddleware()],
+    checkpointer=AsyncPostgresSaver(pool),
+    interrupt_on={"confirm_role_preference": True, ...}  # HITL tools
+)
+```
+
+### 2. HITL with Countdown Timer
+```typescript
+// frontend/src/components/HITLCard.tsx
+<HITLCard
+  title="Confirm Role"
+  description="Save CTO as your target role?"
+  onConfirm={() => resolve("confirmed")}
+  onCancel={() => resolve("rejected")}
+  countdownSeconds={15}
+  autoAction="cancel"  // Auto-cancels if no response
+/>
+```
+
+### 3. User Identity Flow
+```
+Neon Auth (Google) → useSession() → useCopilotReadable({ user_id })
+                                           ↓
+Voice: Hume EVI → customSessionId includes userId → CLM endpoint extracts it
+                                           ↓
+Agent: state.user_id at top level → tools use it for persistence
+```
+
+### 4. State Sync
+```typescript
+// Frontend passes state to agent
+useCopilotReadable({
+  description: "Current user and onboarding state",
+  value: { user_id, onboarding }
+});
+
+// Frontend visualizes confirmed state
+<ProfileSidebar onboarding={onboarding} userName={name} userId={id} />
+```
+
+---
 
 ## Tools Summary
 
-### Onboarding Tools (6)
+| Category | Tools | HITL Tools |
+|----------|-------|------------|
+| Onboarding | 6 | 5 (confirm_role, confirm_trinity, etc.) |
+| Job Search | 6 | 2 (save_job, update_job_status) |
+| Coaching | 5 | 2 (schedule_session, cancel_session) |
+| Memory | 3 | 2 (save_preference, save_fact) |
+| **Total** | **20** | **11** |
 
-| Tool | Description | HITL |
-|------|-------------|------|
-| `get_profile_status` | Check user's onboarding progress | No |
-| `confirm_role_preference` | Set C-level role (CTO, CFO, etc.) | Yes |
-| `confirm_trinity` | Set engagement type (Fractional, Interim, Advisory) | Yes |
-| `confirm_experience` | Set years and industries | Yes |
-| `confirm_location` | Set location and remote preference | Yes |
-| `confirm_search_prefs` | Set day rate and availability | Yes |
-| `complete_onboarding` | Finalize onboarding | Yes |
+---
 
-### Job Search Tools (6)
+## Environment Variables
 
-| Tool | Description | HITL |
-|------|-------------|------|
-| `search_jobs` | Search jobs with filters | No |
-| `match_jobs` | Find jobs matching user profile | No |
-| `save_job` | Save a job to user's list | Yes |
-| `get_saved_jobs` | Get user's saved jobs | No |
-| `update_job_status` | Update job status | Yes |
-| `get_job_details` | Get full job details | No |
+### Railway (agent)
+```bash
+GOOGLE_API_KEY=<Gemini API key>
+GOOGLE_MODEL=gemini-2.0-flash
+DATABASE_URL=<Neon PostgreSQL connection string>
+ZEP_API_KEY=<Zep Cloud API key>
+ZEP_GRAPH=fractional-jobs-graph
+```
 
-### Coaching Tools (5)
+### Vercel (frontend)
+```bash
+LANGGRAPH_DEPLOYMENT_URL=https://agent-production-ccb0.up.railway.app
+NEON_AUTH_BASE_URL=<Neon Auth endpoint>
+HUME_API_KEY=<Hume API key>
+HUME_SECRET_KEY=<Hume secret key>
+NEXT_PUBLIC_HUME_CONFIG_ID=5900eabb-8de1-42cf-ba18-3a718257b3e7
+ZEP_API_KEY=<Zep Cloud API key>
+ZEP_GRAPH=fractional-jobs-graph
+```
 
-| Tool | Description | HITL |
-|------|-------------|------|
-| `find_coaches` | Search coaches by specialty/industry | No |
-| `get_coach_details` | Get full coach profile | No |
-| `schedule_session` | Book a coaching session | Yes |
-| `get_my_sessions` | Get user's coaching sessions | No |
-| `cancel_session` | Cancel an upcoming session | Yes |
+---
 
-### Memory Tools (3)
+## Quick Commands
 
-| Tool | Description | HITL |
-|------|-------------|------|
-| `get_user_memory` | Retrieve Zep facts/preferences | No |
-| `save_user_preference` | Store a preference to Zep | Yes |
-| `save_user_fact` | Store a fact to Zep | Yes |
+```bash
+# Local development
+cd agent && uv run python main.py    # Agent on :8123
+cd frontend && npm run dev           # Frontend on :3000
 
-## Session Restart
+# Deploy (auto via GitHub)
+git add -A && git commit -m "message" && git push origin main
 
-**See RESTART_PROMPT.md for:**
-- Complete session progress summary
-- Architecture diagram
-- New component documentation
-- Code change details
-- Next steps with implementation examples
-- Environment variable reference
+# Neon SQL Editor (for migrations)
+# https://console.neon.tech/app/projects/sweet-hat-02969611/sql-editor
+```
 
-*Last updated: January 30, 2026*
+---
+
+## Session Continuity
+
+**For detailed implementation progress and code examples from the January 30, 2026 session, read `RESTART_PROMPT.md`.**
+
+It contains:
+- Completed items with file changes
+- Code snippets for key changes (Voice+Identity, message sync, Zep context)
+- Architecture clarifications
+- Next steps with implementation examples for middleware
+- Git commit history
+
+---
+
+## Files Quick Reference
+
+### Most Important Files
+
+| File | What It Does |
+|------|--------------|
+| `agent/agent.py` | Deep Agents orchestrator, 3 subagents, middleware |
+| `agent/state.py` | State schema with user_id at top level |
+| `frontend/src/app/page.tsx` | Main UI, 11 HITL hooks, ProfileSidebar |
+| `frontend/src/components/VoiceInput.tsx` | Hume EVI voice with Zep context |
+| `frontend/src/components/HITLCard.tsx` | Countdown timer confirmation card |
+| `frontend/src/app/api/chat/completions/route.ts` | CLM endpoint (voice → agent) |
+
+### New Components (Phase 4)
+
+| File | Purpose |
+|------|---------|
+| `HITLCard.tsx` | Reusable HITL with 15s countdown, pause on hover |
+| `ProfileSidebar.tsx` | Shows confirmed DB state with progress |
+| `providers.tsx` | NeonAuthUIProvider with Google OAuth |
+| `api/zep-context/route.ts` | Fetches Zep memory for voice prompts |
+
+---
+
+*Last updated: January 30, 2026 - Phase 4.1 at 70%, continuing with middleware implementation*
