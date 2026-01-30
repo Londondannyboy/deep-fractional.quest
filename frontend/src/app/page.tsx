@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { CopilotChat } from "@copilotkit/react-ui";
-import { useDefaultTool, useCopilotReadable, useHumanInTheLoop } from "@copilotkit/react-core";
+import { useDefaultTool, useCopilotReadable, useHumanInTheLoop, useCopilotChat } from "@copilotkit/react-core";
+import { TextMessage, Role } from "@copilotkit/runtime-client-gql";
 import { authClient } from "@/lib/auth/client";
+import { VoiceInput } from "@/components/VoiceInput";
 
 // Types matching backend state
 interface OnboardingState {
@@ -30,6 +32,22 @@ export default function Home() {
   // Get authenticated user session
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
+  const firstName = session?.user?.name?.split(" ")[0];
+
+  // CopilotKit chat for voice integration
+  const { appendMessage } = useCopilotChat();
+
+  // Handle voice messages - forward to CopilotKit chat
+  const handleVoiceMessage = useCallback(
+    (text: string, role: "user" | "assistant") => {
+      const message = new TextMessage({
+        content: text,
+        role: role === "user" ? Role.User : Role.Assistant,
+      });
+      appendMessage(message);
+    },
+    [appendMessage]
+  );
 
   // Capture tool results and update state
   useDefaultTool({
@@ -431,6 +449,104 @@ export default function Home() {
     },
   });
 
+  // HITL: Schedule coaching session
+  useHumanInTheLoop({
+    name: "schedule_session",
+    description: "Confirm scheduling a coaching session",
+    parameters: [
+      { name: "coach_id", type: "string", description: "Coach ID", required: true },
+      { name: "session_type", type: "string", description: "Session type", required: true },
+      { name: "preferred_date", type: "string", description: "Preferred date", required: false },
+      { name: "topic", type: "string", description: "Topic to discuss", required: false },
+    ],
+    render: ({ args, status, respond }) => {
+      if (status === "executing" && respond) {
+        const sessionLabels: Record<string, string> = {
+          intro_call: "Free 15-min Intro Call",
+          coaching_session: "60-min Coaching Session",
+          strategy_deep_dive: "90-min Strategy Deep Dive",
+        };
+        const sessionLabel = sessionLabels[args.session_type as string] || args.session_type;
+
+        return (
+          <div className="my-2 rounded-lg border-2 border-violet-200 bg-violet-50 p-4">
+            <div className="font-semibold text-violet-900 mb-2">Schedule Coaching Session</div>
+            <div className="text-sm text-violet-800 mb-3 space-y-1">
+              <p>Session: <strong>{sessionLabel}</strong></p>
+              {args.preferred_date && (
+                <p>Date: <strong>{args.preferred_date as string}</strong></p>
+              )}
+              {args.topic && (
+                <p className="text-xs">Topic: {args.topic as string}</p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => respond({ confirmed: true })}
+                className="px-3 py-1 bg-violet-600 text-white rounded text-sm hover:bg-violet-700"
+              >
+                Book Session
+              </button>
+              <button
+                onClick={() => respond({ confirmed: false })}
+                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        );
+      }
+      if (status === "complete") {
+        return <div className="text-xs text-gray-500 my-1">Session request submitted</div>;
+      }
+      return <></>;
+    },
+  });
+
+  // HITL: Cancel coaching session
+  useHumanInTheLoop({
+    name: "cancel_session",
+    description: "Confirm cancelling a coaching session",
+    parameters: [
+      { name: "session_id", type: "string", description: "Session ID", required: true },
+      { name: "reason", type: "string", description: "Cancellation reason", required: false },
+    ],
+    render: ({ args, status, respond }) => {
+      if (status === "executing" && respond) {
+        return (
+          <div className="my-2 rounded-lg border-2 border-red-200 bg-red-50 p-4">
+            <div className="font-semibold text-red-900 mb-2">Cancel Coaching Session</div>
+            <p className="text-sm text-red-800 mb-3">
+              Are you sure you want to cancel this session?
+              {args.reason && (
+                <span className="block mt-1 text-xs">Reason: {args.reason as string}</span>
+              )}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => respond({ confirmed: true })}
+                className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+              >
+                Cancel Session
+              </button>
+              <button
+                onClick={() => respond({ confirmed: false })}
+                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+              >
+                Keep Session
+              </button>
+            </div>
+          </div>
+        );
+      }
+      if (status === "complete") {
+        return <div className="text-xs text-gray-500 my-1">Session cancelled</div>;
+      }
+      return <></>;
+    },
+  });
+
   const steps = [
     { key: "role_preference", label: "Role", value: onboarding.role_preference },
     { key: "trinity", label: "Type", value: onboarding.trinity },
@@ -443,7 +559,19 @@ export default function Home() {
     <main className="flex min-h-screen">
       {/* Left: Profile Panel */}
       <div className="w-80 border-r border-slate-200 bg-slate-50 p-4">
-        <h1 className="text-xl font-bold text-slate-900 mb-4">Fractional Quest</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-bold text-slate-900">Fractional Quest</h1>
+        </div>
+
+        {/* Voice Chat Button */}
+        <div className="mb-6">
+          <VoiceInput
+            onMessage={handleVoiceMessage}
+            firstName={firstName}
+            userId={userId}
+            pageContext={{ pageType: onboarding.completed ? "jobs" : "home" }}
+          />
+        </div>
 
         {/* Progress Steps */}
         <div className="mb-6">

@@ -2,7 +2,7 @@
 
 LangChain Deep Agents + CopilotKit for fractional executive job matching.
 
-## Status: Phase 2.5 Complete
+## Status: Phase 2.6 Complete
 
 | Phase | Status |
 |-------|--------|
@@ -12,7 +12,9 @@ LangChain Deep Agents + CopilotKit for fractional executive job matching.
 | Phase 2.3: Neon Persistence | COMPLETE |
 | Phase 2.4: Neon Auth | COMPLETE |
 | Phase 2.5: Job Search Agent | COMPLETE |
-| Phase 2.6: Coaching Agent | Pending |
+| Phase 2.6: Coaching Agent | COMPLETE |
+| Phase 2.7: PostgreSQL Checkpointer | COMPLETE |
+| Phase 3: Hume EVI Voice | COMPLETE |
 
 ## Production URLs
 
@@ -41,6 +43,9 @@ cd frontend && npm run dev  # port 3000
 | LLM | Gemini 2.0 Flash |
 | Database | Neon PostgreSQL |
 | Auth | Neon Auth (`@neondatabase/auth`) |
+| Checkpointer | AsyncPostgresSaver (langgraph-checkpoint-postgres) |
+| Memory | Zep Cloud (cross-session facts/preferences) |
+| Voice | Hume EVI (@humeai/voice-react) |
 | Backend | FastAPI + uvicorn |
 | Frontend | Next.js 15 + React 19 |
 | Deploy | Railway (agent) + Vercel (frontend) |
@@ -48,16 +53,22 @@ cd frontend && npm run dev  # port 3000
 ## Key Files
 
 **Agent:**
-- `agent/agent.py` - Deep Agents graph with `interrupt_on` for HITL
-- `agent/tools/onboarding.py` - 6 tools with Pydantic schemas + persistence
-- `agent/tools/jobs.py` - 6 job search tools (search, match, save, get, update status)
+- `agent/agent.py` - Deep Agents graph with 3 subagents + HITL
+- `agent/tools/onboarding.py` - 6 onboarding tools
+- `agent/tools/jobs.py` - 6 job search tools
+- `agent/tools/coaching.py` - 5 coaching tools
+- `agent/tools/memory.py` - Zep memory integration
 - `agent/persistence/neon.py` - asyncpg client for Neon PostgreSQL
-- `agent/migrations/002_create_jobs_tables.sql` - Jobs + saved_jobs schema
-- `agent/main.py` - FastAPI entrypoint
+- `agent/persistence/checkpointer.py` - PostgreSQL checkpointer for conversation persistence
+- `agent/migrations/002_create_jobs_tables.sql` - Jobs schema
+- `agent/migrations/003_create_coaching_tables.sql` - Coaching schema
+- `agent/main.py` - FastAPI entrypoint with lifespan
 
 **Frontend:**
-- `frontend/src/app/page.tsx` - CopilotKit UI + useHumanInTheLoop hooks
+- `frontend/src/app/page.tsx` - CopilotKit UI + useHumanInTheLoop hooks + VoiceInput
 - `frontend/src/app/layout.tsx` - NeonAuthUIProvider + CopilotKit wrapper
+- `frontend/src/components/VoiceInput.tsx` - Hume EVI voice component
+- `frontend/src/app/api/hume-token/route.ts` - Hume OAuth2 token generation
 - `frontend/src/lib/auth/client.ts` - Neon Auth client
 - `frontend/src/app/auth/[path]/page.tsx` - Auth pages (sign-in, sign-up)
 - `frontend/src/app/api/auth/[...path]/route.ts` - Auth API routes
@@ -68,10 +79,14 @@ cd frontend && npm run dev  # port 3000
 - `GOOGLE_API_KEY` - Gemini API key
 - `GOOGLE_MODEL` - gemini-2.0-flash
 - `DATABASE_URL` - Neon PostgreSQL connection string
+- `ZEP_API_KEY` - Zep Cloud API key (optional)
 
 **Vercel (frontend):**
 - `LANGGRAPH_DEPLOYMENT_URL` - Railway agent URL
 - `NEON_AUTH_BASE_URL` - Neon Auth endpoint
+- `HUME_API_KEY` - Hume API key (server-side)
+- `HUME_SECRET_KEY` - Hume secret key (server-side)
+- `NEXT_PUBLIC_HUME_CONFIG_ID` - Hume EVI config ID (optional)
 
 ## Database Schema
 
@@ -82,68 +97,20 @@ cd frontend && npm run dev  # port 3000
 - `public.user_profiles` - Onboarding data
 - `public.jobs` - Job listings
 - `public.saved_jobs` - User saved jobs with status tracking
-
-```sql
--- User profiles (onboarding)
-CREATE TABLE public.user_profiles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES neon_auth.user(id) ON DELETE CASCADE,
-    role_preference VARCHAR(50),
-    trinity VARCHAR(50),
-    experience_years INTEGER,
-    industries TEXT[],
-    location VARCHAR(255),
-    remote_preference VARCHAR(50),
-    day_rate_min INTEGER,
-    day_rate_max INTEGER,
-    availability VARCHAR(100),
-    onboarding_completed BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(user_id)
-);
-
--- Job listings
-CREATE TABLE public.jobs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title VARCHAR(255) NOT NULL,
-    company VARCHAR(255) NOT NULL,
-    role_type VARCHAR(50) NOT NULL,
-    engagement_type VARCHAR(50) NOT NULL,
-    description TEXT,
-    location VARCHAR(255),
-    remote_preference VARCHAR(50),
-    day_rate_min INTEGER,
-    day_rate_max INTEGER,
-    industries TEXT[],
-    requirements TEXT[],
-    experience_years_min INTEGER,
-    posted_at TIMESTAMPTZ DEFAULT NOW(),
-    expires_at TIMESTAMPTZ,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Saved jobs (user bookmarks + application tracking)
-CREATE TABLE public.saved_jobs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES neon_auth.user(id) ON DELETE CASCADE,
-    job_id UUID NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE,
-    saved_at TIMESTAMPTZ DEFAULT NOW(),
-    notes TEXT,
-    status VARCHAR(50) DEFAULT 'saved',  -- saved, applied, interviewing, rejected, accepted
-    UNIQUE(user_id, job_id)
-);
-```
+- `public.coaches` - Executive coach profiles
+- `public.coaching_sessions` - User coaching session bookings
+- `checkpoint_*` - LangGraph checkpointer tables (auto-created)
 
 ## Key Patterns
 
 1. **Agent Creation**: `create_deep_agent()` with `CopilotKitMiddleware()` + `interrupt_on`
-2. **Tools**: `@tool(args_schema=PydanticModel)`, accept optional `user_id` for persistence
-3. **HITL**: `useHumanInTheLoop` hooks render confirmation cards in chat
-4. **Auth**: `NeonAuthUIProvider` wraps app, `authClient.useSession()` gets user
-5. **State Sync**: `useCopilotReadable()` passes `user_id` + onboarding state to agent
+2. **Subagents**: onboarding-agent, job-search-agent, coaching-agent
+3. **Tools**: `@tool(args_schema=PydanticModel)`, accept optional `user_id` for persistence
+4. **HITL**: `interrupt_on` dict marks tools requiring user confirmation
+5. **Checkpointer**: `AsyncPostgresSaver` persists conversations across restarts
+6. **Memory**: Zep stores cross-session facts and preferences
+7. **Auth**: `NeonAuthUIProvider` wraps app, `authClient.useSession()` gets user
+8. **State Sync**: `useCopilotReadable()` passes `user_id` + onboarding state to agent
 
 ## Auth Flow
 
@@ -154,20 +121,70 @@ CREATE TABLE public.saved_jobs (
 5. `useCopilotReadable` passes `user_id` to agent
 6. Tools persist to `user_profiles` table when `user_id` present
 
-## Job Search Tools (Phase 2.5)
+## Tools Summary
+
+### Onboarding Tools (6)
 
 | Tool | Description | HITL |
 |------|-------------|------|
-| `search_jobs` | Search jobs with filters (role, location, rate, etc.) | No |
-| `match_jobs` | Find jobs matching user profile with scoring | No |
+| `get_profile_status` | Check user's onboarding progress | No |
+| `confirm_role_preference` | Set C-level role (CTO, CFO, etc.) | Yes |
+| `confirm_trinity` | Set engagement type (Fractional, Interim, Advisory) | Yes |
+| `confirm_experience` | Set years and industries | Yes |
+| `confirm_location` | Set location and remote preference | Yes |
+| `confirm_search_prefs` | Set day rate and availability | Yes |
+| `complete_onboarding` | Finalize onboarding | Yes |
+
+### Job Search Tools (6)
+
+| Tool | Description | HITL |
+|------|-------------|------|
+| `search_jobs` | Search jobs with filters | No |
+| `match_jobs` | Find jobs matching user profile | No |
 | `save_job` | Save a job to user's list | Yes |
 | `get_saved_jobs` | Get user's saved jobs | No |
-| `update_job_status` | Update job status (applied, interviewing, etc.) | Yes |
-| `get_job_details` | Get full job details by ID | No |
+| `update_job_status` | Update job status | Yes |
+| `get_job_details` | Get full job details | No |
 
-## Next Steps (Phase 2.6)
+### Coaching Tools (5)
 
-Add Coaching Agent:
-1. Create `agent/tools/coaching.py` with find_coaches, schedule_session
-2. Add coaching-agent to subagents in agent.py
-3. Create coaches and coaching_sessions tables in Neon
+| Tool | Description | HITL |
+|------|-------------|------|
+| `find_coaches` | Search coaches by specialty/industry | No |
+| `get_coach_details` | Get full coach profile | No |
+| `schedule_session` | Book a coaching session | Yes |
+| `get_my_sessions` | Get user's coaching sessions | No |
+| `cancel_session` | Cancel an upcoming session | Yes |
+
+### Memory Tools (3)
+
+| Tool | Description | HITL |
+|------|-------------|------|
+| `get_user_memory` | Retrieve Zep facts/preferences | No |
+| `save_user_preference` | Store a preference to Zep | Yes |
+| `save_user_fact` | Store a fact to Zep | Yes |
+
+## Database Migrations
+
+Run migrations against Neon:
+```bash
+# In Neon SQL Editor or via psql
+\i agent/migrations/002_create_jobs_tables.sql
+\i agent/migrations/003_create_coaching_tables.sql
+```
+
+## Voice Integration
+
+The VoiceInput component provides Hume EVI voice chat:
+- Fetches OAuth2 token from `/api/hume-token`
+- Connects to Hume on button click
+- Forwards voice messages to CopilotKit chat
+- Shows connection status and errors
+
+## Next Steps (Phase 4)
+
+Production hardening:
+1. Run coaching migration on Neon database
+2. Add CLM endpoint for Hume → Agent routing (optional)
+3. Add webhook for conversation storage to Zep (optional)
+4. Add rate limiting and error handling

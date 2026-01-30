@@ -12,10 +12,13 @@ dependencies = [
     "langchain-google-genai>=4.2.0",
     "langgraph>=1.0.7",
     "langgraph-checkpoint>=4.0.0",
+    "langgraph-checkpoint-postgres>=2.0.0",
+    "psycopg[binary]>=3.2.0",
     "pydantic>=2.12.0",
     "python-dotenv>=1.2.1",
     "uvicorn[standard]>=0.40.0",
     "asyncpg>=0.31.0",
+    "zep-cloud>=2.0.0",
 ]
 
 [build-system]

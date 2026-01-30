@@ -1,6 +1,7 @@
 """Tools for Fractional Quest agent."""
 
 from .onboarding import (
+    get_profile_status,
     confirm_role_preference,
     confirm_trinity,
     confirm_experience,
@@ -10,7 +11,16 @@ from .onboarding import (
     ONBOARDING_TOOLS,
 )
 
+from .memory import (
+    get_user_memory,
+    save_user_preference,
+    save_user_fact,
+    MEMORY_TOOLS,
+)
+
 __all__ = [
+    # Onboarding tools
+    "get_profile_status",
     "confirm_role_preference",
     "confirm_trinity",
     "confirm_experience",
@@ -18,4 +28,9 @@ __all__ = [
     "confirm_search_prefs",
     "complete_onboarding",
     "ONBOARDING_TOOLS",
+    # Memory tools
+    "get_user_memory",
+    "save_user_preference",
+    "save_user_fact",
+    "MEMORY_TOOLS",
 ]

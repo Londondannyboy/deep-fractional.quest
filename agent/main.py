@@ -5,6 +5,7 @@ Exposes AG-UI endpoint for CopilotKit integration.
 """
 
 import os
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,6 +18,35 @@ from ag_ui_langgraph import add_langgraph_fastapi_endpoint
 from copilotkit import LangGraphAGUIAgent
 
 from agent import build_agent
+from persistence.checkpointer import init_checkpointer, close_checkpointer
+
+
+# =============================================================================
+# FastAPI Lifespan
+# =============================================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Manage application lifecycle.
+
+    - Initialize PostgreSQL checkpointer tables on startup
+    - Clean up connections on shutdown
+    """
+    print("[LIFESPAN] Starting up...")
+
+    # Initialize checkpointer (runs setup() for table creation)
+    try:
+        await init_checkpointer()
+        print("[LIFESPAN] Checkpointer initialized")
+    except Exception as e:
+        print(f"[LIFESPAN] Checkpointer init warning: {e}")
+
+    yield
+
+    # Cleanup on shutdown
+    print("[LIFESPAN] Shutting down...")
+    await close_checkpointer()
 
 
 # =============================================================================
@@ -27,6 +57,7 @@ app = FastAPI(
     title="Fractional Quest Agent",
     description="Deep Agents backend for fractional executive career assistance",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS for frontend

@@ -412,6 +412,186 @@ class NeonClient:
             return None
 
 
+    # =========================================================================
+    # Coaching Operations
+    # =========================================================================
+
+    async def get_coach(self, coach_id: str) -> dict[str, Any] | None:
+        """Get a coach by ID."""
+        async with self.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT * FROM coaches WHERE id = $1 AND is_active = true
+                """,
+                coach_id,
+            )
+            if row:
+                result = dict(row)
+                result["id"] = str(result["id"])
+                return result
+            return None
+
+    async def search_coaches(
+        self,
+        specialty: str | None = None,
+        industry: str | None = None,
+        min_rating: float | None = None,
+        limit: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Search coaches with optional filters."""
+        conditions = ["is_active = true"]
+        params = []
+        param_idx = 1
+
+        if specialty:
+            conditions.append(f"specialty = ${param_idx}")
+            params.append(specialty.lower())
+            param_idx += 1
+
+        if industry:
+            conditions.append(f"(industries && ARRAY[${param_idx}] OR 'all' = ANY(industries))")
+            params.append(industry.lower())
+            param_idx += 1
+
+        if min_rating is not None:
+            conditions.append(f"rating >= ${param_idx}")
+            params.append(min_rating)
+            param_idx += 1
+
+        where_clause = " AND ".join(conditions)
+        params.append(limit)
+
+        async with self.acquire() as conn:
+            rows = await conn.fetch(
+                f"""
+                SELECT id, name, title, specialty, industries, bio,
+                       rating, sessions_completed, hourly_rate,
+                       availability, photo_url
+                FROM coaches
+                WHERE {where_clause}
+                ORDER BY rating DESC, sessions_completed DESC
+                LIMIT ${param_idx}
+                """,
+                *params,
+            )
+            return [
+                {**dict(row), "id": str(row["id"])}
+                for row in rows
+            ]
+
+    async def create_coaching_session(
+        self,
+        user_id: str,
+        coach_id: str,
+        session_type: str,
+        preferred_date: str | None = None,
+        preferred_time: str | None = None,
+        topic: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Create a coaching session request."""
+        async with self.acquire() as conn:
+            try:
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO coaching_sessions
+                        (user_id, coach_id, session_type, preferred_date,
+                         preferred_time, topic, status)
+                    VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+                    RETURNING *
+                    """,
+                    user_id,
+                    coach_id,
+                    session_type,
+                    preferred_date,
+                    preferred_time,
+                    topic,
+                )
+                if row:
+                    result = dict(row)
+                    result["id"] = str(result["id"])
+                    result["user_id"] = str(result["user_id"])
+                    result["coach_id"] = str(result["coach_id"])
+                    return result
+                return None
+            except Exception as e:
+                print(f"[NEON] Error creating session: {e}")
+                return None
+
+    async def get_user_sessions(
+        self,
+        user_id: str,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Get user's coaching sessions with coach details."""
+        conditions = ["cs.user_id = $1"]
+        params = [user_id]
+        param_idx = 2
+
+        if status:
+            conditions.append(f"cs.status = ${param_idx}")
+            params.append(status)
+            param_idx += 1
+
+        where_clause = " AND ".join(conditions)
+
+        async with self.acquire() as conn:
+            rows = await conn.fetch(
+                f"""
+                SELECT
+                    cs.id as session_id,
+                    cs.session_type,
+                    cs.status,
+                    cs.preferred_date,
+                    cs.preferred_time,
+                    cs.confirmed_at,
+                    cs.topic,
+                    cs.notes,
+                    cs.created_at,
+                    c.id as coach_id,
+                    c.name as coach_name,
+                    c.title as coach_title,
+                    c.specialty as coach_specialty,
+                    c.photo_url as coach_photo
+                FROM coaching_sessions cs
+                JOIN coaches c ON c.id = cs.coach_id
+                WHERE {where_clause}
+                ORDER BY cs.created_at DESC
+                """,
+                *params,
+            )
+            return [
+                {
+                    **dict(row),
+                    "session_id": str(row["session_id"]),
+                    "coach_id": str(row["coach_id"]),
+                }
+                for row in rows
+            ]
+
+    async def cancel_coaching_session(
+        self,
+        session_id: str,
+        user_id: str,
+        reason: str | None = None,
+    ) -> bool:
+        """Cancel a coaching session."""
+        async with self.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE coaching_sessions
+                SET status = 'cancelled',
+                    cancelled_at = NOW(),
+                    cancellation_reason = $3
+                WHERE id = $1 AND user_id = $2 AND status IN ('pending', 'scheduled')
+                """,
+                session_id,
+                user_id,
+                reason,
+            )
+            # Returns "UPDATE N" where N is rows affected
+            return result and result.endswith("1")
+
+
 # Global client instance
 _client: NeonClient | None = None
 

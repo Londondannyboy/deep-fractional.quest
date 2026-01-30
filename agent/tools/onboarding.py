@@ -5,14 +5,14 @@ Each tool confirms a piece of user profile information
 and returns state updates that sync to the frontend.
 
 Uses Pydantic schemas for input validation (args_schema).
-Optionally persists to Neon PostgreSQL when user_id is provided.
+Persists to Neon PostgreSQL when user_id is provided.
+
+IMPORTANT: Tools are async and AWAIT database writes to prevent race conditions.
 """
 
-import asyncio
 from langchain.tools import tool
 from pydantic import BaseModel, Field, field_validator
 from typing import Dict, Any, List, Literal, Optional
-import json
 
 # Persistence helper (lazy import to avoid startup issues)
 _neon_client = None
@@ -29,18 +29,6 @@ def _get_neon_client():
             print(f"[TOOLS] Neon client not available: {e}")
             return None
     return _neon_client
-
-
-def _persist_async(coro):
-    """Run async persistence in background, don't block tool execution."""
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            asyncio.create_task(coro)
-        else:
-            loop.run_until_complete(coro)
-    except Exception as e:
-        print(f"[TOOLS] Persistence error: {e}")
 
 
 # Valid values for validation
@@ -153,11 +141,106 @@ class CompleteOnboardingInput(BaseModel):
 
 
 # =============================================================================
+# Profile Status Tool (for workflow routing)
+# =============================================================================
+
+class GetProfileStatusInput(BaseModel):
+    """Input schema for get_profile_status tool."""
+    user_id: str = Field(description="The user's unique identifier")
+
+
+@tool(args_schema=GetProfileStatusInput)
+async def get_profile_status(user_id: str) -> Dict[str, Any]:
+    """
+    Get the user's current profile and onboarding status from the database.
+
+    Use this at the START of each conversation to determine:
+    - If the user is new or returning
+    - What onboarding step they're on (if incomplete)
+    - What preferences they've already set
+
+    Args:
+        user_id: The user's unique identifier
+
+    Returns:
+        Profile status including onboarding_completed flag and all saved preferences
+    """
+    client = _get_neon_client()
+    if not client:
+        return {
+            "success": False,
+            "is_new_user": True,
+            "onboarding_completed": False,
+            "current_step": 0,
+            "profile": {},
+            "message": "Database not available - treat as new user",
+        }
+
+    try:
+        profile = await client.get_profile(user_id)
+
+        if not profile:
+            return {
+                "success": True,
+                "is_new_user": True,
+                "onboarding_completed": False,
+                "current_step": 0,
+                "profile": {},
+                "message": "New user - start onboarding",
+            }
+
+        # Determine current step based on what's filled
+        current_step = 0
+        if profile.get("role_preference"):
+            current_step = 1
+        if profile.get("trinity"):
+            current_step = 2
+        if profile.get("experience_years") is not None:
+            current_step = 3
+        if profile.get("location"):
+            current_step = 4
+        if profile.get("day_rate_min") is not None:
+            current_step = 5
+        if profile.get("onboarding_completed"):
+            current_step = 6
+
+        return {
+            "success": True,
+            "is_new_user": False,
+            "onboarding_completed": bool(profile.get("onboarding_completed", False)),
+            "current_step": current_step,
+            "profile": {
+                "role_preference": profile.get("role_preference"),
+                "trinity": profile.get("trinity"),
+                "experience_years": profile.get("experience_years"),
+                "industries": profile.get("industries", []),
+                "location": profile.get("location"),
+                "remote_preference": profile.get("remote_preference"),
+                "day_rate_min": profile.get("day_rate_min"),
+                "day_rate_max": profile.get("day_rate_max"),
+                "availability": profile.get("availability"),
+            },
+            "message": "Onboarding complete - ready for job search" if profile.get("onboarding_completed") else f"Resume onboarding at step {current_step + 1}",
+        }
+
+    except Exception as e:
+        print(f"[TOOLS] Error getting profile status: {e}")
+        return {
+            "success": False,
+            "is_new_user": True,
+            "onboarding_completed": False,
+            "current_step": 0,
+            "profile": {},
+            "message": f"Error reading profile: {str(e)}",
+        }
+
+
+# =============================================================================
 # Tools with Pydantic Schemas
 # =============================================================================
 
 @tool(args_schema=RolePreferenceInput)
-def confirm_role_preference(role: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+async def confirm_role_preference(role: str, user_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Confirm the C-level role preference.
 
@@ -176,11 +259,15 @@ def confirm_role_preference(role: str, user_id: Optional[str] = None) -> Dict[st
             "error": f"Invalid role. Please choose from: {', '.join(VALID_ROLES)}",
         }
 
-    # Persist to Neon if user_id provided
+    # Persist to Neon if user_id provided - AWAIT to ensure write completes
     if user_id:
         client = _get_neon_client()
         if client:
-            _persist_async(client.update_role_preference(user_id, normalized))
+            try:
+                await client.update_role_preference(user_id, normalized)
+                print(f"[TOOLS] Persisted role_preference={normalized} for user={user_id}")
+            except Exception as e:
+                print(f"[TOOLS] Failed to persist role_preference: {e}")
 
     return {
         "success": True,
@@ -192,7 +279,7 @@ def confirm_role_preference(role: str, user_id: Optional[str] = None) -> Dict[st
 
 
 @tool(args_schema=TrinityInput)
-def confirm_trinity(engagement_type: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+async def confirm_trinity(engagement_type: str, user_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Confirm the engagement type preference (fractional/interim/advisory).
 
@@ -211,11 +298,15 @@ def confirm_trinity(engagement_type: str, user_id: Optional[str] = None) -> Dict
             "error": f"Invalid type. Please choose from: {', '.join(VALID_TRINITY)}",
         }
 
-    # Persist to Neon if user_id provided
+    # Persist to Neon if user_id provided - AWAIT to ensure write completes
     if user_id:
         client = _get_neon_client()
         if client:
-            _persist_async(client.update_trinity(user_id, normalized))
+            try:
+                await client.update_trinity(user_id, normalized)
+                print(f"[TOOLS] Persisted trinity={normalized} for user={user_id}")
+            except Exception as e:
+                print(f"[TOOLS] Failed to persist trinity: {e}")
 
     return {
         "success": True,
@@ -227,7 +318,7 @@ def confirm_trinity(engagement_type: str, user_id: Optional[str] = None) -> Dict
 
 
 @tool(args_schema=ExperienceInput)
-def confirm_experience(years: int, industries: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+async def confirm_experience(years: int, industries: str, user_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Confirm experience level and industries.
 
@@ -247,11 +338,15 @@ def confirm_experience(years: int, industries: str, user_id: Optional[str] = Non
 
     industry_list = [i.strip() for i in industries.split(",") if i.strip()]
 
-    # Persist to Neon if user_id provided
+    # Persist to Neon if user_id provided - AWAIT to ensure write completes
     if user_id:
         client = _get_neon_client()
         if client:
-            _persist_async(client.update_experience(user_id, years, industry_list))
+            try:
+                await client.update_experience(user_id, years, industry_list)
+                print(f"[TOOLS] Persisted experience={years}yrs, industries={industry_list} for user={user_id}")
+            except Exception as e:
+                print(f"[TOOLS] Failed to persist experience: {e}")
 
     return {
         "success": True,
@@ -264,7 +359,7 @@ def confirm_experience(years: int, industries: str, user_id: Optional[str] = Non
 
 
 @tool(args_schema=LocationInput)
-def confirm_location(location: str, remote_preference: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+async def confirm_location(location: str, remote_preference: str, user_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Confirm location and remote work preference.
 
@@ -284,11 +379,15 @@ def confirm_location(location: str, remote_preference: str, user_id: Optional[st
             "error": f"Invalid preference. Choose from: {', '.join(VALID_REMOTE)}",
         }
 
-    # Persist to Neon if user_id provided
+    # Persist to Neon if user_id provided - AWAIT to ensure write completes
     if user_id:
         client = _get_neon_client()
         if client:
-            _persist_async(client.update_location(user_id, location.strip(), remote_norm))
+            try:
+                await client.update_location(user_id, location.strip(), remote_norm)
+                print(f"[TOOLS] Persisted location={location}, remote={remote_norm} for user={user_id}")
+            except Exception as e:
+                print(f"[TOOLS] Failed to persist location: {e}")
 
     return {
         "success": True,
@@ -301,7 +400,7 @@ def confirm_location(location: str, remote_preference: str, user_id: Optional[st
 
 
 @tool(args_schema=SearchPrefsInput)
-def confirm_search_prefs(
+async def confirm_search_prefs(
     day_rate_min: int,
     day_rate_max: int,
     availability: str,
@@ -333,11 +432,15 @@ def confirm_search_prefs(
             "error": "Minimum rate cannot exceed maximum rate.",
         }
 
-    # Persist to Neon if user_id provided
+    # Persist to Neon if user_id provided - AWAIT to ensure write completes
     if user_id:
         client = _get_neon_client()
         if client:
-            _persist_async(client.update_search_prefs(user_id, day_rate_min, day_rate_max, avail_norm))
+            try:
+                await client.update_search_prefs(user_id, day_rate_min, day_rate_max, avail_norm)
+                print(f"[TOOLS] Persisted search_prefs rate={day_rate_min}-{day_rate_max}, avail={avail_norm} for user={user_id}")
+            except Exception as e:
+                print(f"[TOOLS] Failed to persist search_prefs: {e}")
 
     return {
         "success": True,
@@ -351,7 +454,7 @@ def confirm_search_prefs(
 
 
 @tool(args_schema=CompleteOnboardingInput)
-def complete_onboarding(user_id: Optional[str] = None) -> Dict[str, Any]:
+async def complete_onboarding(user_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Mark onboarding as complete and confirm profile is ready.
 
@@ -361,11 +464,15 @@ def complete_onboarding(user_id: Optional[str] = None) -> Dict[str, Any]:
     Returns:
         State update marking onboarding complete
     """
-    # Persist to Neon if user_id provided
+    # Persist to Neon if user_id provided - AWAIT to ensure write completes
     if user_id:
         client = _get_neon_client()
         if client:
-            _persist_async(client.complete_onboarding(user_id))
+            try:
+                await client.complete_onboarding(user_id)
+                print(f"[TOOLS] Marked onboarding complete for user={user_id}")
+            except Exception as e:
+                print(f"[TOOLS] Failed to complete onboarding: {e}")
 
     return {
         "success": True,
@@ -377,6 +484,7 @@ def complete_onboarding(user_id: Optional[str] = None) -> Dict[str, Any]:
 
 # Export all tools as a list
 ONBOARDING_TOOLS = [
+    get_profile_status,  # Use this first to determine workflow routing
     confirm_role_preference,
     confirm_trinity,
     confirm_experience,
