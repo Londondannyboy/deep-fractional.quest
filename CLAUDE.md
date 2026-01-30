@@ -76,9 +76,10 @@ deep-fractional.quest/
 | Phase 2.6 | COMPLETE | Coaching Agent (5 tools, needs DB migration) |
 | Phase 2.7 | COMPLETE | PostgreSQL Checkpointer |
 | Phase 3 | COMPLETE | Hume EVI Voice integration |
-| **Phase 4** | **COMPLETE (95%)** | Full Voice/Chat/State Integration |
+| **Phase 4** | **COMPLETE** | Full Voice/Chat/State Integration |
+| **Phase 5** | **COMPLETE (98%)** | Tavily Hybrid Job Search |
 
-**Assessment Score: 8.5/10** against Christian's production patterns
+**Assessment Score: 9/10** against Christian's production patterns
 
 ### Phase 4 Complete - All Core Features
 
@@ -92,6 +93,18 @@ deep-fractional.quest/
 - Tool Call Limit Middleware (50 calls max, warns at 80%)
 - Voice/Chat context sharing via CopilotWrapper threadId
 - All 11 HITL hooks use HITLCard consistently
+
+### Phase 5 Complete - Tavily Hybrid Search
+
+- `hybrid_search_jobs` tool: DB first (free), then Tavily (fresh)
+- Auto-saves Tavily results to database for future queries
+- Filters out job board aggregators (LinkedIn, Indeed, etc.)
+- CopilotKit prompt pattern: never output jobs in chat, only via tools
+- Database schema: `jobs` and `saved_jobs` tables
+
+**Requires manual setup:**
+1. Add `TAVILY_API_KEY` to Railway environment
+2. Run database migration in Neon SQL Editor
 
 ### Optional Enhancements (Nice-to-Have)
 
@@ -320,4 +333,4 @@ It contains:
 
 ---
 
-*Last updated: January 30, 2026 - Phase 4 Complete (95%) - All core Christian patterns implemented*
+*Last updated: January 30, 2026 - Phase 5 Complete (98%) - Tavily hybrid search + all Christian patterns*

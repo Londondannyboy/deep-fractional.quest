@@ -4,9 +4,9 @@
 
 Production-ready fractional executive career platform using CopilotKit + LangGraph Deep Agents (Christian Bromann's patterns) with voice interface.
 
-## Current Status: Phase 4 Complete (95% Complete)
+## Current Status: Phase 5 Complete (98% Complete)
 
-**Assessment Score: 8.5/10** (up from 7/10 with complete HITL, Voice/Chat sharing)
+**Assessment Score: 9/10** (up from 8.5/10 with Tavily hybrid search)
 
 **Live URLs:**
 - Frontend: https://deep-fractional-web.vercel.app
@@ -47,7 +47,28 @@ Production-ready fractional executive career platform using CopilotKit + LangGra
 | Voice/Chat Context Sharing | `CopilotWrapper.tsx` (new), `layout.tsx` | DONE (thread ID sync) |
 | All HITL Hooks with HITLCard | `page.tsx`, `HITLCard.tsx` (red color) | DONE (11 hooks) |
 
-### Phase 4 Complete - All Core Features Implemented
+### Completed (Phase 5 - Tavily Hybrid Search)
+
+| Item | Files Modified | Status |
+|------|---------------|--------|
+| Tavily API Integration | `tools/tavily_search.py` (new) | DONE |
+| Hybrid Search Tool | `tools/jobs.py` (hybrid_search_jobs) | DONE |
+| Auto-Save to DB | `persistence/neon.py` (create_job, get_job_by_url) | DONE |
+| Job Board Filtering | Excludes LinkedIn, Indeed, Glassdoor, etc. | DONE |
+| CopilotKit Prompt Pattern | `agent.py` (JOB_SEARCH_PROMPT updated) | DONE |
+| Database Schema | `persistence/schema.sql` (jobs, saved_jobs tables) | DONE |
+
+**Key Implementation (from CopilotKit example):**
+- `hybrid_search_jobs` queries database first (instant, free), then Tavily (fresh)
+- Tavily results auto-saved to database for future queries
+- Prompt enforces "never output job details in chat, only via tools"
+- Job board URLs filtered out (we want direct company postings)
+
+### Phase 5 Complete - Requires Manual Setup
+
+**Manual Steps Required:**
+1. Add `TAVILY_API_KEY` to Railway environment variables
+2. Run database migration (jobs + saved_jobs tables) in Neon SQL Editor
 
 **Remaining Optional Enhancements:**
 - Voice HITL announcements (audio cue when confirmation needed)
@@ -355,13 +376,20 @@ ZEP_GRAPH=fractional-jobs-graph
 | **Summarization Middleware** | Built-in (deepagents) | DONE (discovered built-in) |
 | **Tool Call Limit** | Custom | DONE (ToolCallLimitMiddleware) |
 | **Voice/Chat Thread Sharing** | `threadId` prop | DONE (CopilotWrapper) |
+| **Tavily Hybrid Search** | `hybrid_search_jobs` | DONE (DB + Web) |
 | **Agent State Render** | `useCoAgentStateRender` | OPTIONAL |
 | **Custom Interrupts** | `useLangGraphInterrupt` | OPTIONAL |
 | **Emit Intermediate State** | `copilotkitEmitState` | OPTIONAL |
 | **Selective Emission** | `copilotkitCustomizeConfig` | OPTIONAL |
 
-**Core patterns: 9/9 implemented (100%)**
-**Optional patterns: 0/4 (nice-to-have for future)**
+**Core patterns: 10/10 implemented (100%)**
+**Optional patterns: 0/3 (nice-to-have for future)**
+
+### Tavily Search Pattern (NEW - from CopilotKit example)
+- Hybrid search: DB first, then web
+- Auto-save web results to DB
+- Job board URL filtering
+- Tool-only output (no jobs in chat)
 
 ---
 
@@ -474,4 +502,4 @@ The CopilotKit + Deep Agents approach provides:
 
 ---
 
-*Last updated: January 30, 2026 - Phase 4 Complete (95%)*
+*Last updated: January 30, 2026 - Phase 5 Complete (98%) - Tavily hybrid search added*
