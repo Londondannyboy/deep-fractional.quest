@@ -6,6 +6,7 @@ import { useDefaultTool, useCopilotReadable, useHumanInTheLoop, useCopilotChat }
 import { TextMessage, Role } from "@copilotkit/runtime-client-gql";
 import { authClient } from "@/lib/auth/client";
 import { VoiceInput } from "@/components/VoiceInput";
+import { HITLCard } from "@/components/HITLCard";
 
 // Types matching backend state
 interface OnboardingState {
@@ -113,26 +114,17 @@ export default function Home() {
     render: ({ args, status, respond }) => {
       if (status === "executing" && respond) {
         return (
-          <div className="my-2 rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
-            <div className="font-semibold text-blue-900 mb-2">Confirm Role Preference</div>
-            <p className="text-sm text-blue-800 mb-3">
-              Save <strong>{(args.role as string)?.toUpperCase()}</strong> as your target role?
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => respond({ confirmed: true })}
-                className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => respond({ confirmed: false })}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <HITLCard
+            title="Confirm Role Preference"
+            description={`Save ${(args.role as string)?.toUpperCase()} as your target C-level role?`}
+            confirmLabel="Yes, save this"
+            cancelLabel="Not now"
+            onConfirm={() => respond({ confirmed: true })}
+            onCancel={() => respond({ confirmed: false })}
+            countdownSeconds={15}
+            autoAction="cancel"
+            colorScheme="blue"
+          />
         );
       }
       if (status === "complete") {
@@ -152,26 +144,15 @@ export default function Home() {
     render: ({ args, status, respond }) => {
       if (status === "executing" && respond) {
         return (
-          <div className="my-2 rounded-lg border-2 border-purple-200 bg-purple-50 p-4">
-            <div className="font-semibold text-purple-900 mb-2">Confirm Engagement Type</div>
-            <p className="text-sm text-purple-800 mb-3">
-              Save <strong>{args.trinity as string}</strong> as your preferred engagement type?
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => respond({ confirmed: true })}
-                className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => respond({ confirmed: false })}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <HITLCard
+            title="Confirm Engagement Type"
+            description={`Save ${args.trinity as string} as your preferred engagement type (Fractional/Interim/Advisory)?`}
+            onConfirm={() => respond({ confirmed: true })}
+            onCancel={() => respond({ confirmed: false })}
+            countdownSeconds={15}
+            autoAction="cancel"
+            colorScheme="purple"
+          />
         );
       }
       if (status === "complete") {
@@ -193,29 +174,15 @@ export default function Home() {
       if (status === "executing" && respond) {
         const industries = args.industries as string[];
         return (
-          <div className="my-2 rounded-lg border-2 border-green-200 bg-green-50 p-4">
-            <div className="font-semibold text-green-900 mb-2">Confirm Experience</div>
-            <p className="text-sm text-green-800 mb-1">
-              Years: <strong>{args.years as number}</strong>
-            </p>
-            <p className="text-sm text-green-800 mb-3">
-              Industries: <strong>{industries?.join(", ")}</strong>
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => respond({ confirmed: true })}
-                className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => respond({ confirmed: false })}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <HITLCard
+            title="Confirm Experience"
+            description={`Save ${args.years as number} years experience in ${industries?.join(", ")}?`}
+            onConfirm={() => respond({ confirmed: true })}
+            onCancel={() => respond({ confirmed: false })}
+            countdownSeconds={15}
+            autoAction="cancel"
+            colorScheme="green"
+          />
         );
       }
       if (status === "complete") {
@@ -236,29 +203,15 @@ export default function Home() {
     render: ({ args, status, respond }) => {
       if (status === "executing" && respond) {
         return (
-          <div className="my-2 rounded-lg border-2 border-orange-200 bg-orange-50 p-4">
-            <div className="font-semibold text-orange-900 mb-2">Confirm Location</div>
-            <p className="text-sm text-orange-800 mb-1">
-              Location: <strong>{args.location as string}</strong>
-            </p>
-            <p className="text-sm text-orange-800 mb-3">
-              Remote: <strong>{args.remote_preference as string}</strong>
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => respond({ confirmed: true })}
-                className="px-3 py-1 bg-orange-600 text-white rounded text-sm hover:bg-orange-700"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => respond({ confirmed: false })}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <HITLCard
+            title="Confirm Location"
+            description={`Save ${args.location as string} (${args.remote_preference as string}) as your location preference?`}
+            onConfirm={() => respond({ confirmed: true })}
+            onCancel={() => respond({ confirmed: false })}
+            countdownSeconds={15}
+            autoAction="cancel"
+            colorScheme="orange"
+          />
         );
       }
       if (status === "complete") {
@@ -280,29 +233,15 @@ export default function Home() {
     render: ({ args, status, respond }) => {
       if (status === "executing" && respond) {
         return (
-          <div className="my-2 rounded-lg border-2 border-teal-200 bg-teal-50 p-4">
-            <div className="font-semibold text-teal-900 mb-2">Confirm Search Preferences</div>
-            <p className="text-sm text-teal-800 mb-1">
-              Day Rate: <strong>${args.day_rate_min as number} - ${args.day_rate_max as number}</strong>
-            </p>
-            <p className="text-sm text-teal-800 mb-3">
-              Availability: <strong>{args.availability as string}</strong>
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => respond({ confirmed: true })}
-                className="px-3 py-1 bg-teal-600 text-white rounded text-sm hover:bg-teal-700"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => respond({ confirmed: false })}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <HITLCard
+            title="Confirm Search Preferences"
+            description={`Save day rate $${args.day_rate_min}-$${args.day_rate_max} with ${args.availability as string} availability?`}
+            onConfirm={() => respond({ confirmed: true })}
+            onCancel={() => respond({ confirmed: false })}
+            countdownSeconds={15}
+            autoAction="cancel"
+            colorScheme="teal"
+          />
         );
       }
       if (status === "complete") {
