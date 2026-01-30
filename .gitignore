@@ -38,3 +38,4 @@ npm-debug.log*
 # Lock files (optional - remove if you want to commit them)
 # package-lock.json
 # uv.lock
+.vercel
