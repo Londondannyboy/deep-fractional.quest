@@ -4,9 +4,9 @@
 
 Production-ready fractional executive career platform using CopilotKit + LangGraph Deep Agents (Christian Bromann's patterns) with voice interface.
 
-## Current Status: Phase 4.1 In Progress (70% Complete)
+## Current Status: Phase 4.2 Complete (85% Complete)
 
-**Assessment Score: 6/10** (up from 5/10 at session start)
+**Assessment Score: 7/10** (up from 6/10 with middleware)
 
 **Live URLs:**
 - Frontend: https://deep-fractional-web.vercel.app
@@ -30,18 +30,20 @@ Production-ready fractional executive career platform using CopilotKit + LangGra
 | HITL Countdown Timer | `HITLCard.tsx` (new), `page.tsx` | DONE |
 | Profile Sidebar Visualization | `ProfileSidebar.tsx` (new), `page.tsx` | DONE |
 
-### In Progress
+### Completed (Phase 4.2 - Middleware)
 
-| Item | Status | Notes |
-|------|--------|-------|
-| Summarization Middleware | STARTED | Research phase - custom implementation needed |
+| Item | Files Modified | Status |
+|------|---------------|--------|
+| Summarization Middleware | Built-in to deepagents | DONE (discovered built-in) |
+| Tool Call Limit Middleware | `middleware/tool_limit.py`, `agent.py` | DONE |
+| Checkpointer Fix | `persistence/checkpointer.py` | DONE (asyncpg pool) |
+
+**Key Discovery:** `deepagents` includes a built-in `SummarizationMiddleware` that uses an LLM to intelligently summarize old messages. It's much more sophisticated than simple trimming - it creates structured summaries with SESSION INTENT, SUMMARY, ARTIFACTS, and NEXT STEPS sections.
 
 ### Remaining Phase 4 Tasks
 
 | Item | Priority | Estimated Complexity |
 |------|----------|---------------------|
-| Summarization Middleware | HIGH | Medium - Python middleware in agent.py |
-| Tool Call Limit Middleware | HIGH | Low - Simple counter in middleware |
 | Voice/Chat Context Sharing | MEDIUM | Medium - Sync thread IDs or Zep bridge |
 | Voice HITL Announcements | LOW | Low - Audio cue when confirmation needed |
 | Update Remaining HITL Hooks | LOW | Low - Replace inline with HITLCard |
@@ -88,8 +90,11 @@ Production-ready fractional executive career platform using CopilotKit + LangGra
 |    6 tools      6 tools       5 tools        |
 |    + HITL       + HITL        + HITL         |   +------------------+
 |                                              |   |  Hume EVI Cloud  |
-|  CopilotKitMiddleware                        |<--| (voice interface)|
-|  AsyncPostgresSaver (checkpointer)           |   +------------------+
+|  Middleware Stack:                           |<--| (voice interface)|
+|  - SummarizationMiddleware (built-in)        |   +------------------+
+|  - ToolCallLimitMiddleware (50 calls max)    |
+|  - CopilotKitMiddleware                      |
+|  AsyncPostgresSaver (checkpointer)           |
 |  Gemini 2.0 Flash                            |
 +----------------------------------------------+
 ```
@@ -157,6 +162,23 @@ Fetches user memory from Zep knowledge graph:
 - Categorizes facts (role, location, skill, interest, experience)
 - Returns structured context for voice prompts
 - Uses `ZEP_GRAPH` env var (fractional-jobs-graph)
+
+### 5. `agent/middleware/tool_limit.py`
+Production safety middleware to prevent runaway costs:
+- Limits tool calls to 50 per conversation thread
+- Warns at 80% threshold (40 calls)
+- Raises `MaxToolCallsExceeded` when limit hit
+- Resets counter for each new thread_id
+
+```python
+# Usage in agent.py
+middleware=[
+    ToolCallLimitMiddleware(max_calls=50, warn_at_percentage=80),
+    CopilotKitMiddleware(),
+],
+```
+
+**Note:** Summarization is built-in to `deepagents` - no custom middleware needed.
 
 ---
 
@@ -291,8 +313,11 @@ ZEP_GRAPH=fractional-jobs-graph
 | `frontend/src/app/api/chat/completions/route.ts` | MODIFIED | user_id extraction |
 | `frontend/src/app/layout.tsx` | MODIFIED | Use Providers component |
 | `frontend/src/app/page.tsx` | MODIFIED | HITLCard, ProfileSidebar |
-| `agent/agent.py` | MODIFIED | User identity prompt section |
+| `agent/agent.py` | MODIFIED | User identity prompt, middleware |
 | `agent/state.py` | MODIFIED | user_id at top level |
+| `agent/middleware/__init__.py` | NEW | Middleware exports |
+| `agent/middleware/tool_limit.py` | NEW | Tool call limit middleware |
+| `agent/persistence/checkpointer.py` | MODIFIED | Fixed async pool handling |
 
 ### Core Files Reference
 
@@ -321,8 +346,8 @@ ZEP_GRAPH=fractional-jobs-graph
 | **State Sync** | `useCopilotReadable` | DONE |
 | **Profile Visualization** | Custom | DONE (ProfileSidebar) |
 | **Zep Memory Integration** | Custom | DONE |
-| **Summarization Middleware** | Custom | IN PROGRESS |
-| **Tool Call Limit** | Custom | PENDING |
+| **Summarization Middleware** | Built-in (deepagents) | DONE (discovered built-in) |
+| **Tool Call Limit** | Custom | DONE (ToolCallLimitMiddleware) |
 | **Agent State Render** | `useCoAgentStateRender` | PENDING |
 | **Custom Interrupts** | `useLangGraphInterrupt` | PENDING |
 | **Emit Intermediate State** | `copilotkitEmitState` | PENDING |
@@ -365,18 +390,15 @@ b153fb4 docs: comprehensive Phase 4 restart plan with Christian's patterns
 
 1. **Read this file first** - It contains all context from the previous session
 
-2. **Check current todo list:**
-   - Summarization Middleware (75% token reduction) - IN PROGRESS
-   - Tool Call Limit Middleware - PENDING
-   - Voice/Chat context sharing - PENDING
-   - Voice HITL announcements - PENDING
-   - Update remaining HITL hooks with HITLCard - PENDING
+2. **Phase 4.2 Middleware is COMPLETE:**
+   - Summarization: Built-in to deepagents (LLM-based intelligent summaries)
+   - Tool Call Limit: Custom middleware added (50 calls max)
+   - Checkpointer: Fixed async pool handling
 
-3. **Continue with Summarization Middleware:**
-   - Create `agent/middleware/` directory
-   - Implement `SummarizationMiddleware` class
-   - Add to `create_deep_agent()` middleware list
-   - Test with long conversations
+3. **Remaining Phase 4 Tasks:**
+   - Voice/Chat context sharing via Zep bridge
+   - Voice HITL announcements (audio cues)
+   - Update remaining HITL hooks with HITLCard
 
 4. **Reference the PRD:** `docs/PRD.md` for validation values and user journey
 
@@ -384,4 +406,4 @@ b153fb4 docs: comprehensive Phase 4 restart plan with Christian's patterns
 
 ---
 
-*Last updated: January 30, 2026 - Phase 4.1 at 70%*
+*Last updated: January 30, 2026 - Phase 4.2 at 85% (middleware complete)*

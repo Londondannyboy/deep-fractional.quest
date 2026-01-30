@@ -15,6 +15,7 @@ from copilotkit import CopilotKitMiddleware
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from persistence.checkpointer import get_sync_checkpointer
+from middleware import ToolCallLimitMiddleware
 
 from tools.onboarding import ONBOARDING_TOOLS
 from tools.jobs import JOB_TOOLS
@@ -207,13 +208,20 @@ def build_agent():
         "cancel_session": True,
     }
 
-    # Create the Deep Agents graph
+    # Create the Deep Agents graph with production middleware
+    # Note: deepagents includes built-in SummarizationMiddleware that uses LLM
+    # to summarize old messages, so we don't add our own.
+    # - ToolCallLimitMiddleware: Prevents runaway costs (max 50 tool calls per run)
+    # - CopilotKitMiddleware: Handles frontend tool injection and state sync
     agent_graph = create_deep_agent(
         model=llm,
         system_prompt=ORCHESTRATOR_PROMPT,
         tools=tools,
         subagents=subagents,
-        middleware=[CopilotKitMiddleware()],
+        middleware=[
+            ToolCallLimitMiddleware(max_calls=50, warn_at_percentage=80),
+            CopilotKitMiddleware(),
+        ],
         checkpointer=get_sync_checkpointer(),  # PostgreSQL for persistence across restarts
         interrupt_on=interrupt_on,  # HITL: pause for user confirmation
     )
@@ -221,6 +229,7 @@ def build_agent():
     print("[AGENT] Deep Agents graph created")
     print(f"[AGENT] Tools: {[t.name for t in tools]}")
     print(f"[AGENT] Subagents: {[s['name'] for s in subagents]}")
+    print("[AGENT] Middleware: Built-in(Summarization+Filesystem+TodoList), ToolCallLimitMiddleware(50), CopilotKitMiddleware")
 
     return agent_graph.with_config({"recursion_limit": 100})
 
