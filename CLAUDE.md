@@ -186,19 +186,26 @@ The VoiceInput component provides Hume EVI voice chat:
 
 ## Next Steps (Phase 4)
 
-**Immediate:**
+**Phase 4.1 - Voice + User Identity (PRIORITY):**
 1. Run coaching migration 003 on Neon (manual SQL - see RESTART_PROMPT.md)
-2. Test full flow: Onboarding → Job Search → Coaching
-3. Verify voice + chat show same conversation
+2. Pass userId from Neon Auth to Hume session metadata
+3. Extract userId in CLM endpoint, pass to agent
+4. Test voice + user identity flow end-to-end
 
-**Short-term:**
-4. Add more realistic jobs seed data
-5. Profile editing UI
-6. Job application status tracking
+**Phase 4.2 - Christian's CopilotKit Patterns:**
+5. `useLangGraphInterrupt` - Custom interrupt UI
+6. `copilotkitEmitState` - Progress updates during long operations
+7. `useCoAgentStateRender` - Render agent state in UI
+8. `copilotkitCustomizeConfig` - Selective tool emission
 
-**Medium-term:**
-7. Job matching algorithm
-8. Coach availability calendar
-9. Push notifications
+**Phase 4.3 - Data & Features:**
+9. Seed more realistic jobs data
+10. Profile editing tool
+11. Job application status tracking
 
-See RESTART_PROMPT.md for full Phase 4 todo list.
+**Phase 4.4 - Refactoring:**
+12. Extract HITL components (page.tsx 634→200 lines)
+13. Extract voice hooks (VoiceInput.tsx cleanup)
+14. Tool base classes for common patterns
+
+See RESTART_PROMPT.md for comprehensive details with file paths and code examples.

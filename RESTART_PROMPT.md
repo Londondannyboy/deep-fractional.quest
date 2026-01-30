@@ -1,15 +1,19 @@
-# Deep Fractional - Restart Prompt (Phase 4)
+# Deep Fractional - Comprehensive Phase 4 Restart Plan
 
 ## Mission
 
-Production-ready fractional executive career platform using CopilotKit + LangGraph Deep Agents with voice interface.
+Production-ready fractional executive career platform using CopilotKit + LangGraph Deep Agents (Christian's pattern) with voice interface.
 
-## Current Status: Phase 3 Complete - Ready for Phase 4
+## Current Status: Phase 3 Complete - Voice Working, Auth Working
 
 **Live URLs:**
 - Frontend: https://deep-fractional-web.vercel.app
 - Agent: https://agent-production-ccb0.up.railway.app
 - GitHub: https://github.com/Londondannyboy/deep-fractional.quest
+- Neon Project: `sweet-hat-02969611`
+- Neon SQL Editor: https://console.neon.tech/app/projects/sweet-hat-02969611/sql-editor
+
+---
 
 ## Architecture (Christian's CopilotKit Pattern)
 
@@ -38,8 +42,8 @@ Production-ready fractional executive career platform using CopilotKit + LangGra
 │  ┌─────────────────────────────────┐  │    │  user_profiles        │
 │  │         ORCHESTRATOR            │  │    │  jobs                 │
 │  │   (routes to subagents)         │  │    │  saved_jobs           │
-│  └─────────────┬───────────────────┘  │    │  coaches (NEEDS MIGRATION) │
-│                │                      │    │  coaching_sessions    │
+│  └─────────────┬───────────────────┘  │    │  coaches ⚠️           │
+│                │                      │    │  coaching_sessions ⚠️ │
 │   ┌────────────┼────────────┐        │    │  checkpoint_*         │
 │   ▼            ▼            ▼        │    │  neon_auth.*          │
 │ ┌─────┐    ┌─────┐    ┌─────────┐   │    └───────────────────────┘
@@ -57,33 +61,39 @@ Production-ready fractional executive career platform using CopilotKit + LangGra
 └───────────────────────────────────────┘
 ```
 
+**⚠️ = Needs migration 003 (see below)**
+
+---
+
 ## What's Working
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| CopilotKit Chat | ✅ Working | Sidebar with tool execution UI |
-| Hume EVI Voice | ✅ Working | Voice → transcript → sidebar |
-| Onboarding Tools | ✅ Working | 6 tools with HITL confirmation |
-| Job Search Tools | ✅ Working | 6 tools for search/save/track |
-| Coaching Tools | ⚠️ Code Ready | DB migration needed (see below) |
-| Memory Tools | ✅ Working | Zep integration for facts |
-| PostgreSQL Checkpointer | ✅ Working | Conversation persistence |
-| Neon Auth | ✅ Working | Email OTP login, session management |
-| Auth UI | ✅ Working | Sign-in/out links in sidebar |
+| Feature | Status | File Location |
+|---------|--------|---------------|
+| CopilotKit Chat | ✅ Working | `frontend/src/app/page.tsx` |
+| HITL Confirmations | ✅ Working | `frontend/src/app/page.tsx:180-450` (11 hooks) |
+| Hume EVI Voice | ✅ Working | `frontend/src/components/VoiceInput.tsx` |
+| Voice → Sidebar Sync | ✅ Working | Via `appendMessage()` |
+| Neon Auth (Email OTP) | ✅ Working | `frontend/src/app/auth/[path]/page.tsx` |
+| Auth UI in Sidebar | ✅ Working | `frontend/src/app/page.tsx:95-115` |
+| Onboarding Tools | ✅ Working | `agent/tools/onboarding.py` (6 tools) |
+| Job Search Tools | ✅ Working | `agent/tools/jobs.py` (6 tools) |
+| Coaching Tools | ⚠️ Code Ready | `agent/tools/coaching.py` (DB needed) |
+| Memory Tools | ✅ Working | `agent/tools/memory.py` (3 tools) |
+| PostgreSQL Checkpointer | ✅ Working | `agent/persistence/checkpointer.py` |
 
-## What's NOT Working Yet
+---
 
-### 1. Coaching Database Tables (MANUAL ACTION REQUIRED)
+## IMMEDIATE ACTION REQUIRED
 
-Run this in Neon SQL Editor (Project: `sweet-hat-02969611`):
+### 1. Run Coaching Migration 003
+
+**Location:** Neon SQL Editor
+**URL:** https://console.neon.tech/app/projects/sweet-hat-02969611/sql-editor
+
+Copy-paste this SQL:
 
 ```sql
--- Copy from: agent/migrations/003_create_coaching_tables.sql
--- Or run in Neon console: https://console.neon.tech/app/projects/sweet-hat-02969611/sql-editor
-```
-
-Full migration SQL:
-```sql
+-- Migration 003: Coaching Tables
 CREATE TABLE IF NOT EXISTS public.coaches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
@@ -138,7 +148,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user ON public.coaching_sessions(user_id
 CREATE INDEX IF NOT EXISTS idx_sessions_coach ON public.coaching_sessions(coach_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_status ON public.coaching_sessions(status);
 
--- Seed sample coaches
+-- Seed 5 sample coaches
 INSERT INTO public.coaches (name, title, specialty, industries, bio, rating, sessions_completed, hourly_rate, years_experience, credentials, photo_url)
 VALUES
     ('Sarah Mitchell', 'Executive Leadership Coach', 'leadership',
@@ -169,70 +179,197 @@ VALUES
 ON CONFLICT DO NOTHING;
 ```
 
-### 2. Google OAuth (Optional Enhancement)
+---
 
-The NeonAuthUIProvider's `socialProviders` prop doesn't exist in current types. Options:
-1. Use email OTP only (current - works fine)
-2. Configure Google OAuth in Neon dashboard directly
-3. Wait for @neondatabase/auth update with social provider support
+## Phase 4 Todo List (Priority Order)
 
-### 3. Voice HITL Confirmations
+### Phase 4.1: Voice + User Identity (PRIORITY)
 
-Current architecture: Voice bypasses HITL confirmations (goes direct to agent via transcript).
-This is intentional for voice UX but means voice can't confirm tool calls.
+| Task | File | Description |
+|------|------|-------------|
+| **Pass userId to Hume session** | `frontend/src/components/VoiceInput.tsx:45` | Include `user.id` from Neon Auth in Hume session metadata |
+| **Extract userId in CLM endpoint** | `frontend/src/app/api/chat/completions/route.ts:25` | Parse userId from Hume session, pass to agent |
+| **Voice triggers HITL in sidebar** | `frontend/src/app/page.tsx` | When voice calls a tool, show confirmation UI |
 
-Options for Phase 4:
-- Keep as-is (voice is conversational, chat is transactional)
-- Add voice-specific confirmation prompts in agent responses
-- Route voice through same HITL flow (requires architectural change)
+**Current Gap:** Voice transcripts bypass HITL because they go through `appendMessage()` directly. The agent processes them but doesn't trigger the `useHumanInTheLoop` render in sidebar.
 
-### 4. Jobs Seed Data
+**Solution Options:**
+1. **Option A (Recommended):** Voice remains conversational (no modal confirmations). Agent confirms via speech: "I've saved that job for you."
+2. **Option B:** Route voice through same HITL flow by having agent emit `interrupt` events that pause until user clicks confirm in sidebar.
 
-The `jobs` table exists but may need more realistic seed data for demos.
+### Phase 4.2: Christian's CopilotKit Patterns to Implement
 
-## Key Files
+These patterns from Christian's reference repos should be implemented:
 
-**Agent (Python - Railway):**
+#### Pattern 1: `useLangGraphInterrupt` for Custom Interrupt UI
+
+**Reference:** `@copilotkit/react-core/hooks/use-langgraph-interrupt.ts`
+
+```typescript
+// frontend/src/app/page.tsx - Add custom interrupt handling
+import { useLangGraphInterrupt } from "@copilotkit/react-core";
+
+useLangGraphInterrupt({
+  enabled: ({ eventValue, agentMetadata }) => {
+    // Filter which interrupts this handler responds to
+    return agentMetadata.nodeName === "onboarding-agent";
+  },
+  handler: ({ event, resolve }) => {
+    // Pre-process the interrupt
+    console.log("Interrupt received:", event.value);
+  },
+  render: ({ event, result, resolve }) => {
+    // Render custom confirmation UI
+    return (
+      <div className="interrupt-dialog">
+        <p>{event.value.message}</p>
+        <button onClick={() => resolve("confirmed")}>Confirm</button>
+        <button onClick={() => resolve("rejected")}>Cancel</button>
+      </div>
+    );
+  }
+});
 ```
-agent/
-├── agent.py              # Deep Agents orchestrator + 3 subagents
-├── main.py               # FastAPI with lifespan management
-├── state.py              # TypedDict state schemas
-├── tools/
-│   ├── onboarding.py     # 6 onboarding tools + HITL
-│   ├── jobs.py           # 6 job search tools
-│   ├── coaching.py       # 5 coaching tools
-│   └── memory.py         # Zep memory integration
-├── persistence/
-│   ├── neon.py           # asyncpg client
-│   └── checkpointer.py   # PostgreSQL checkpointer
-└── migrations/
-    ├── 002_create_jobs_tables.sql
-    └── 003_create_coaching_tables.sql  # ← RUN THIS MANUALLY
+
+#### Pattern 2: `copilotkitEmitState` for Progress Updates
+
+**Reference:** `@copilotkit/sdk-js/langgraph/utils.ts:203-232`
+
+```python
+# agent/agent.py - Emit intermediate state during long operations
+from copilotkit import copilotkit_emit_state
+
+async def search_jobs_node(state, config):
+    # Emit progress as we search
+    await copilotkit_emit_state(config, {"search_progress": "Searching..."})
+
+    # ... do search ...
+
+    await copilotkit_emit_state(config, {"search_progress": "Found 15 matches"})
+
+    return state
 ```
 
-**Frontend (Next.js - Vercel):**
+#### Pattern 3: `copilotkitCustomizeConfig` for Selective Emission
+
+**Reference:** `@copilotkit/sdk-js/langgraph/utils.ts:51-152`
+
+```python
+# agent/agent.py - Control what gets emitted to frontend
+from copilotkit import copilotkit_customize_config
+
+config = copilotkit_customize_config(
+    config,
+    emit_messages=True,
+    emit_tool_calls=["confirm_role_preference", "save_job"],  # Only emit these
+    emit_intermediate_state=[
+        {"state_key": "search_results", "tool": "search_jobs", "tool_argument": "results"}
+    ]
+)
 ```
-frontend/src/
-├── app/
-│   ├── page.tsx                    # Main UI + 11 HITL hooks
-│   ├── layout.tsx                  # CopilotKit + NeonAuth providers
-│   ├── api/
-│   │   ├── copilotkit/route.ts     # AG-UI endpoint
-│   │   ├── hume-token/route.ts     # OAuth2 token for Hume
-│   │   ├── chat/completions/route.ts # CLM endpoint (Hume → Agent)
-│   │   └── auth/[...path]/route.ts # Neon Auth handler
-│   └── auth/[path]/page.tsx        # Sign-in/sign-up pages
-├── components/
-│   └── VoiceInput.tsx              # Hume EVI component
-└── lib/auth/
-    └── client.ts                   # Neon Auth client
+
+#### Pattern 4: `copilotKitInterrupt` for HITL with Custom Actions
+
+**Reference:** `@copilotkit/sdk-js/langgraph/utils.ts:422-491`
+
+```python
+# agent/tools/onboarding.py - Trigger HITL with action+args
+from copilotkit import copilotkit_interrupt
+
+def confirm_role_preference_node(state, config):
+    # This triggers HITL with specific action signature
+    response = copilotkit_interrupt(
+        action="confirm_role",
+        args={"role": state["proposed_role"], "confidence": 0.95}
+    )
+
+    if response["answer"] == "confirmed":
+        return {"role_preference": state["proposed_role"]}
+    else:
+        return {"messages": [AIMessage(content="No problem, what role would you prefer?")]}
 ```
+
+#### Pattern 5: Agent State Rendering with `useCoAgentStateRender`
+
+**Reference:** CopilotKit docs - Shared State
+
+```typescript
+// frontend/src/app/page.tsx - Render agent state in UI
+import { useCoAgentStateRender } from "@copilotkit/react-core";
+
+useCoAgentStateRender({
+  name: "fractional_quest",
+  render: ({ state }) => {
+    if (state.current_step !== undefined) {
+      return (
+        <OnboardingProgress
+          step={state.current_step}
+          role={state.role_preference}
+          trinity={state.trinity}
+        />
+      );
+    }
+    return null;
+  }
+});
+```
+
+### Phase 4.3: Database & Data
+
+| Task | Location | Description |
+|------|----------|-------------|
+| Run coaching migration | Neon SQL Editor | See SQL above |
+| Seed more jobs | `agent/migrations/` | Add 20+ realistic fractional roles |
+| Add profile editing | New tool | `update_profile_field(field, value)` |
+
+### Phase 4.4: Refactoring (From Plan Analysis)
+
+| Task | Current | Target | Lines Saved |
+|------|---------|--------|-------------|
+| Extract HITL components | `page.tsx:634 lines` | `~200 lines` | ~400 |
+| Extract voice hooks | `VoiceInput.tsx:333 lines` | `~200 lines` | ~130 |
+| Tool base classes | 3 files with duplication | Shared base | ~150 |
+| CLM utilities | `route.ts:292 lines` | Extracted to lib/ | ~100 |
+
+---
+
+## Key File Reference
+
+### Agent (Python - Railway)
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `agent/agent.py` | ~300 | Deep Agents orchestrator + 3 subagents |
+| `agent/main.py` | ~100 | FastAPI entrypoint with lifespan |
+| `agent/state.py` | ~80 | TypedDict state schemas |
+| `agent/tools/onboarding.py` | 504 | 6 onboarding tools + Pydantic schemas |
+| `agent/tools/jobs.py` | 465 | 6 job search tools |
+| `agent/tools/coaching.py` | 345 | 5 coaching tools |
+| `agent/tools/memory.py` | 320 | Zep memory integration |
+| `agent/persistence/neon.py` | 604 | asyncpg client for all DB operations |
+| `agent/persistence/checkpointer.py` | ~50 | PostgreSQL checkpointer setup |
+
+### Frontend (Next.js - Vercel)
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `frontend/src/app/page.tsx` | 634 | Main UI + 11 HITL hooks |
+| `frontend/src/app/layout.tsx` | 42 | CopilotKit + NeonAuth providers |
+| `frontend/src/components/VoiceInput.tsx` | 333 | Hume EVI component |
+| `frontend/src/app/api/copilotkit/route.ts` | ~35 | AG-UI endpoint |
+| `frontend/src/app/api/hume-token/route.ts` | ~50 | Hume OAuth2 token |
+| `frontend/src/app/api/chat/completions/route.ts` | 292 | CLM endpoint (Hume → Agent) |
+| `frontend/src/app/api/auth/[...path]/route.ts` | ~30 | Neon Auth handler |
+| `frontend/src/app/auth/[path]/page.tsx` | 25 | Auth pages |
+| `frontend/src/lib/auth/client.ts` | ~10 | Neon Auth client |
+
+---
 
 ## Environment Variables
 
-**Vercel (frontend):**
-```
+### Vercel (frontend)
+
+```bash
 LANGGRAPH_DEPLOYMENT_URL=https://agent-production-ccb0.up.railway.app
 NEON_AUTH_BASE_URL=https://ep-divine-waterfall-abig6fic.neonauth.eu-west-2.aws.neon.tech/neondb/auth
 HUME_API_KEY=<from Hume dashboard>
@@ -241,42 +378,46 @@ NEXT_PUBLIC_HUME_CONFIG_ID=5900eabb-8de1-42cf-ba18-3a718257b3e7
 ZEP_API_KEY=<from Zep Cloud>
 ```
 
-**Railway (agent):**
-```
+### Railway (agent)
+
+```bash
 GOOGLE_API_KEY=<Gemini API key>
 GOOGLE_MODEL=gemini-2.0-flash
 DATABASE_URL=<Neon PostgreSQL connection string>
 ZEP_API_KEY=<from Zep Cloud>
 ```
 
-## Phase 4 Todo List
+---
 
-### Immediate (Before Next Session)
+## PRD Reference
 
-- [ ] **Run coaching migration 003** - Manual SQL in Neon console
-- [ ] **Test full flow end-to-end** - Onboarding → Job Search → Coaching
-- [ ] **Verify voice + chat sync** - Both should show same conversation
+See `docs/PRD.md` for full product requirements including:
 
-### Short-term Enhancements
+- **User Journey:** Onboarding (6 steps) → Job Search → Coaching
+- **Validation Values:**
+  ```python
+  VALID_ROLES = ["cto", "cfo", "cmo", "coo", "cpo", "other"]
+  VALID_TRINITY = ["fractional", "interim", "advisory", "open"]
+  VALID_REMOTE = ["remote", "hybrid", "onsite", "flexible"]
+  VALID_AVAILABILITY = ["immediately", "1_month", "3_months", "flexible"]
+  ```
+- **Success Metrics:** Onboarding completion rate, Time to complete, State sync reliability, HITL acceptance rate
 
-- [ ] **More jobs seed data** - Add 20+ realistic fractional exec roles
-- [ ] **Profile editing** - Allow users to modify saved preferences
-- [ ] **Job application tracking** - Add status workflow (applied → interviewing → offer)
-- [ ] **Session feedback** - Post-coaching session ratings
+---
 
-### Medium-term Features
+## Christian's Patterns Summary
 
-- [ ] **Job matching algorithm** - Score jobs based on profile match %
-- [ ] **Coach availability** - Real-time calendar integration
-- [ ] **Push notifications** - New job alerts, session reminders
-- [ ] **Analytics dashboard** - Application stats, profile views
+| Pattern | CopilotKit Reference | Our Implementation |
+|---------|---------------------|-------------------|
+| **Deep Agents** | `create_deep_agent()` | `agent/agent.py` ✅ |
+| **HITL via interrupt_on** | `useHumanInTheLoop` | `page.tsx` (11 hooks) ✅ |
+| **State Sync** | `useCopilotReadable` | `page.tsx:75-90` ✅ |
+| **Agent State Render** | `useCoAgentStateRender` | Not yet implemented |
+| **Custom Interrupts** | `useLangGraphInterrupt` | Not yet implemented |
+| **Emit Intermediate State** | `copilotkitEmitState` | Not yet implemented |
+| **Selective Emission** | `copilotkitCustomizeConfig` | Not yet implemented |
 
-### Code Quality (Refactoring)
-
-- [ ] **Extract HITL components** - page.tsx from 634 → ~200 lines
-- [ ] **Extract voice hooks** - VoiceInput.tsx cleanup
-- [ ] **Tool base classes** - Reduce duplication across tools
-- [ ] **Add tests** - Unit tests for critical paths
+---
 
 ## Quick Commands
 
@@ -294,40 +435,42 @@ cd frontend && vercel env ls
 # Check Railway logs
 railway logs -n 100
 
-# Run migration (in Neon SQL Editor)
-# https://console.neon.tech/app/projects/sweet-hat-02969611/sql-editor
+# Run Neon migration
+# Open: https://console.neon.tech/app/projects/sweet-hat-02969611/sql-editor
+# Paste SQL from above
 ```
+
+---
 
 ## Hume Dashboard Setup
 
-For voice to work, ensure in Hume dashboard:
-- **EVI Config ID**: 5900eabb-8de1-42cf-ba18-3a718257b3e7
-- **CLM URL**: https://deep-fractional-web.vercel.app/api/chat/completions (optional)
-- **Method**: POST
-- **Format**: OpenAI-compatible
+For voice to work:
+- **EVI Config ID:** `5900eabb-8de1-42cf-ba18-3a718257b3e7`
+- **CLM URL:** `https://deep-fractional-web.vercel.app/api/chat/completions` (optional)
+- **Method:** POST
+- **Format:** OpenAI-compatible
+
+---
 
 ## Technical Notes
 
 ### Why Voice Bypasses HITL
 
-Voice transcripts go through `appendMessage()` to CopilotKit, then to the agent. The agent processes them as regular messages, not tool confirmation requests. This is by design:
+Voice transcripts flow: `Hume EVI → VoiceInput.tsx → appendMessage() → CopilotKit → Agent`
 
-1. Voice UX should be conversational, not modal
-2. HITL confirmations are visual (buttons in sidebar)
-3. Voice users get confirmations via agent response ("I've saved that job for you")
+The agent processes them as regular user messages, not as HITL confirmation responses. This is intentional for voice UX - you don't want modal dialogs interrupting voice conversations.
 
-### Checkpointer Tables
+### Checkpointer Tables (Auto-Created)
 
-LangGraph auto-creates these tables:
-- `checkpoint_*` - Conversation state snapshots
-- These persist conversation history across browser refreshes
+LangGraph creates these automatically:
+- `checkpoint_*` tables for conversation state
 
-### Neon Auth Tables
+### Neon Auth Tables (Auto-Created)
 
 Neon Auth manages:
 - `neon_auth.user` - User accounts
 - `neon_auth.session` - Active sessions
-- `neon_auth.account` - OAuth providers (future)
+- `neon_auth.account` - OAuth providers
 
 ---
 
