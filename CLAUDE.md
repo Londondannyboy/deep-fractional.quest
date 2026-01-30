@@ -2,7 +2,7 @@
 
 LangChain Deep Agents + CopilotKit for fractional executive job matching.
 
-## Status: Phase 2.6 Complete
+## Status: Phase 3 Complete - Ready for Phase 4
 
 | Phase | Status |
 |-------|--------|
@@ -12,9 +12,12 @@ LangChain Deep Agents + CopilotKit for fractional executive job matching.
 | Phase 2.3: Neon Persistence | COMPLETE |
 | Phase 2.4: Neon Auth | COMPLETE |
 | Phase 2.5: Job Search Agent | COMPLETE |
-| Phase 2.6: Coaching Agent | COMPLETE |
+| Phase 2.6: Coaching Agent | COMPLETE (code) |
 | Phase 2.7: PostgreSQL Checkpointer | COMPLETE |
 | Phase 3: Hume EVI Voice | COMPLETE |
+| Phase 4: Production Hardening | IN PROGRESS |
+
+**Note:** Coaching tables need manual migration - see RESTART_PROMPT.md
 
 ## Production URLs
 
@@ -183,8 +186,19 @@ The VoiceInput component provides Hume EVI voice chat:
 
 ## Next Steps (Phase 4)
 
-Production hardening:
-1. Run coaching migration on Neon database
-2. Add CLM endpoint for Hume → Agent routing (optional)
-3. Add webhook for conversation storage to Zep (optional)
-4. Add rate limiting and error handling
+**Immediate:**
+1. Run coaching migration 003 on Neon (manual SQL - see RESTART_PROMPT.md)
+2. Test full flow: Onboarding → Job Search → Coaching
+3. Verify voice + chat show same conversation
+
+**Short-term:**
+4. Add more realistic jobs seed data
+5. Profile editing UI
+6. Job application status tracking
+
+**Medium-term:**
+7. Job matching algorithm
+8. Coach availability calendar
+9. Push notifications
+
+See RESTART_PROMPT.md for full Phase 4 todo list.
