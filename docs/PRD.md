@@ -10,12 +10,21 @@ Fractional Quest helps fractional executives (CTO, CFO, CMO, COO, CPO) find frac
 - **Phase 2.1**: COMPLETE - Pydantic schemas on all tools
 - **Phase 2.2**: COMPLETE - HITL confirmation flow (11 hooks)
 - **Phase 2.3**: COMPLETE - Neon Persistence
-- **Phase 2.4**: COMPLETE - Neon Auth (email OTP)
+- **Phase 2.4**: COMPLETE - Neon Auth (email OTP + Google OAuth)
 - **Phase 2.5**: COMPLETE - Job Search Agent (6 tools)
 - **Phase 2.6**: COMPLETE (code) - Coaching Agent (DB migration needed)
 - **Phase 2.7**: COMPLETE - PostgreSQL Checkpointer
 - **Phase 3**: COMPLETE - Hume EVI Voice integration
-- **Phase 4**: IN PROGRESS - Voice + User Identity + Christian's patterns
+- **Phase 4.1**: 70% COMPLETE - Voice + User Identity
+  - Voice + User Identity flow
+  - Google OAuth in Neon Auth
+  - Voice to CopilotKit sync fix
+  - Zep context integration
+  - HITL countdown timer (HITLCard)
+  - Profile sidebar visualization
+- **Phase 4.2**: IN PROGRESS - Middleware (Summarization, Tool Limits)
+
+**Assessment Score: 6/10** - See RESTART_PROMPT.md for detailed progress
 
 ## Production URLs
 
