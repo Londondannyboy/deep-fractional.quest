@@ -260,26 +260,17 @@ export default function Home() {
     render: ({ status, respond }) => {
       if (status === "executing" && respond) {
         return (
-          <div className="my-2 rounded-lg border-2 border-indigo-200 bg-indigo-50 p-4">
-            <div className="font-semibold text-indigo-900 mb-2">Complete Onboarding</div>
-            <p className="text-sm text-indigo-800 mb-3">
-              Ready to finalize your profile and start searching for opportunities?
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => respond({ confirmed: true })}
-                className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
-              >
-                Complete Setup
-              </button>
-              <button
-                onClick={() => respond({ confirmed: false })}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-              >
-                Go Back
-              </button>
-            </div>
-          </div>
+          <HITLCard
+            title="Complete Onboarding"
+            description="Ready to finalize your profile and start searching for opportunities?"
+            confirmLabel="Complete Setup"
+            cancelLabel="Go Back"
+            onConfirm={() => respond({ confirmed: true })}
+            onCancel={() => respond({ confirmed: false })}
+            countdownSeconds={20}
+            autoAction="cancel"
+            colorScheme="blue"
+          />
         );
       }
       if (status === "complete") {
@@ -304,29 +295,17 @@ export default function Home() {
     render: ({ args, status, respond }) => {
       if (status === "executing" && respond) {
         return (
-          <div className="my-2 rounded-lg border-2 border-emerald-200 bg-emerald-50 p-4">
-            <div className="font-semibold text-emerald-900 mb-2">Save Job</div>
-            <p className="text-sm text-emerald-800 mb-3">
-              Save this job to your list?
-              {args.notes && (
-                <span className="block mt-1 text-xs">Notes: {args.notes as string}</span>
-              )}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => respond({ confirmed: true })}
-                className="px-3 py-1 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700"
-              >
-                Save Job
-              </button>
-              <button
-                onClick={() => respond({ confirmed: false })}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <HITLCard
+            title="Save Job"
+            description={`Save this job to your list?${args.notes ? ` Notes: ${args.notes}` : ""}`}
+            confirmLabel="Save Job"
+            cancelLabel="Cancel"
+            onConfirm={() => respond({ confirmed: true })}
+            onCancel={() => respond({ confirmed: false })}
+            countdownSeconds={15}
+            autoAction="cancel"
+            colorScheme="green"
+          />
         );
       }
       if (status === "complete") {
@@ -347,39 +326,18 @@ export default function Home() {
     ],
     render: ({ args, status, respond }) => {
       if (status === "executing" && respond) {
-        const statusColors: Record<string, string> = {
-          applied: "bg-blue-600 hover:bg-blue-700",
-          interviewing: "bg-amber-600 hover:bg-amber-700",
-          accepted: "bg-green-600 hover:bg-green-700",
-          rejected: "bg-red-600 hover:bg-red-700",
-          saved: "bg-gray-600 hover:bg-gray-700",
-        };
-        const bgColor = statusColors[args.status as string] || "bg-gray-600 hover:bg-gray-700";
-
         return (
-          <div className="my-2 rounded-lg border-2 border-amber-200 bg-amber-50 p-4">
-            <div className="font-semibold text-amber-900 mb-2">Update Job Status</div>
-            <p className="text-sm text-amber-800 mb-3">
-              Update status to <strong>{args.status as string}</strong>?
-              {args.notes && (
-                <span className="block mt-1 text-xs">Notes: {args.notes as string}</span>
-              )}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => respond({ confirmed: true })}
-                className={`px-3 py-1 text-white rounded text-sm ${bgColor}`}
-              >
-                Update Status
-              </button>
-              <button
-                onClick={() => respond({ confirmed: false })}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <HITLCard
+            title="Update Job Status"
+            description={`Update status to ${args.status}?${args.notes ? ` Notes: ${args.notes}` : ""}`}
+            confirmLabel="Update Status"
+            cancelLabel="Cancel"
+            onConfirm={() => respond({ confirmed: true })}
+            onCancel={() => respond({ confirmed: false })}
+            countdownSeconds={15}
+            autoAction="cancel"
+            colorScheme="orange"
+          />
         );
       }
       if (status === "complete") {
@@ -407,34 +365,24 @@ export default function Home() {
           strategy_deep_dive: "90-min Strategy Deep Dive",
         };
         const sessionLabel = sessionLabels[args.session_type as string] || args.session_type;
+        const details = [
+          `Session: ${sessionLabel}`,
+          args.preferred_date && `Date: ${args.preferred_date}`,
+          args.topic && `Topic: ${args.topic}`,
+        ].filter(Boolean).join(" | ");
 
         return (
-          <div className="my-2 rounded-lg border-2 border-violet-200 bg-violet-50 p-4">
-            <div className="font-semibold text-violet-900 mb-2">Schedule Coaching Session</div>
-            <div className="text-sm text-violet-800 mb-3 space-y-1">
-              <p>Session: <strong>{sessionLabel}</strong></p>
-              {args.preferred_date && (
-                <p>Date: <strong>{args.preferred_date as string}</strong></p>
-              )}
-              {args.topic && (
-                <p className="text-xs">Topic: {args.topic as string}</p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => respond({ confirmed: true })}
-                className="px-3 py-1 bg-violet-600 text-white rounded text-sm hover:bg-violet-700"
-              >
-                Book Session
-              </button>
-              <button
-                onClick={() => respond({ confirmed: false })}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <HITLCard
+            title="Schedule Coaching Session"
+            description={details}
+            confirmLabel="Book Session"
+            cancelLabel="Cancel"
+            onConfirm={() => respond({ confirmed: true })}
+            onCancel={() => respond({ confirmed: false })}
+            countdownSeconds={20}
+            autoAction="cancel"
+            colorScheme="purple"
+          />
         );
       }
       if (status === "complete") {
@@ -455,29 +403,17 @@ export default function Home() {
     render: ({ args, status, respond }) => {
       if (status === "executing" && respond) {
         return (
-          <div className="my-2 rounded-lg border-2 border-red-200 bg-red-50 p-4">
-            <div className="font-semibold text-red-900 mb-2">Cancel Coaching Session</div>
-            <p className="text-sm text-red-800 mb-3">
-              Are you sure you want to cancel this session?
-              {args.reason && (
-                <span className="block mt-1 text-xs">Reason: {args.reason as string}</span>
-              )}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => respond({ confirmed: true })}
-                className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-              >
-                Cancel Session
-              </button>
-              <button
-                onClick={() => respond({ confirmed: false })}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-              >
-                Keep Session
-              </button>
-            </div>
-          </div>
+          <HITLCard
+            title="Cancel Coaching Session"
+            description={`Are you sure you want to cancel this session?${args.reason ? ` Reason: ${args.reason as string}` : ""}`}
+            confirmLabel="Cancel Session"
+            cancelLabel="Keep Session"
+            onConfirm={() => respond({ confirmed: true })}
+            onCancel={() => respond({ confirmed: false })}
+            countdownSeconds={15}
+            autoAction="cancel"
+            colorScheme="red"
+          />
         );
       }
       if (status === "complete") {

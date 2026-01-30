@@ -11,7 +11,7 @@ interface HITLCardProps {
   onCancel: () => void;
   countdownSeconds?: number;
   autoAction?: 'confirm' | 'cancel' | 'none';
-  colorScheme?: 'blue' | 'purple' | 'green' | 'orange' | 'teal' | 'indigo' | 'emerald' | 'amber';
+  colorScheme?: 'blue' | 'purple' | 'green' | 'orange' | 'teal' | 'indigo' | 'emerald' | 'amber' | 'red';
   children?: React.ReactNode;
 }
 
@@ -87,6 +87,15 @@ const colorSchemes = {
     button: 'bg-amber-600 hover:bg-amber-700',
     progress: 'bg-amber-500',
     progressBg: 'bg-amber-200',
+  },
+  red: {
+    border: 'border-red-200',
+    bg: 'bg-red-50',
+    title: 'text-red-900',
+    text: 'text-red-800',
+    button: 'bg-red-600 hover:bg-red-700',
+    progress: 'bg-red-500',
+    progressBg: 'bg-red-200',
   },
 };
 
