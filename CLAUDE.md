@@ -112,7 +112,34 @@ deep-fractional.quest/
 - `useLangGraphInterrupt` for custom interrupts
 - Voice HITL announcements (audio cues)
 
-**See `RESTART_PROMPT.md` for testing guide and comparison analysis.**
+**See `RESTART_PROMPT.md` for detailed testing guide and comparison analysis.**
+
+---
+
+## Quick Test URLs
+
+| Resource | URL |
+|----------|-----|
+| Frontend | https://deep-fractional-web.vercel.app |
+| Agent API | https://agent-production-ccb0.up.railway.app |
+| Neon SQL | https://console.neon.tech/app/projects/sweet-hat-02969611/sql-editor |
+
+### Key Test: Tavily Hybrid Search
+1. Complete onboarding (role, engagement, location)
+2. Type: "Find me CTO jobs in London"
+3. First time: 0 database, 5+ web results
+4. Second time: Those jobs now in database!
+
+---
+
+## Phase 6 Roadmap
+
+| Priority | Task | Description |
+|----------|------|-------------|
+| 1 | Job Cards | Display jobs visually, not in chat |
+| 2 | Resume Upload | Quick onboarding via PDF |
+| 3 | Saved Jobs Dashboard | View/manage saved jobs |
+| 4 | `useCoAgentStateRender` | Show agent "thinking" |
 
 ---
 

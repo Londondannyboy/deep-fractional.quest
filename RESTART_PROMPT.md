@@ -441,39 +441,220 @@ b153fb4 docs: comprehensive Phase 4 restart plan with Christian's patterns
 
 ---
 
-## Testing Guide
+## Phase 5 Testing Guide
 
-### Test Scenarios
+### URLs You Need
 
-| Scenario | Steps | Expected Result |
-|----------|-------|-----------------|
-| **1. Basic Onboarding (Chat)** | 1. Go to https://deep-fractional-web.vercel.app<br>2. Sign in with Google<br>3. Type "Help me find CTO roles" | - HITL card appears with 15s countdown<br>- ProfileSidebar updates after confirmation<br>- Agent routes to onboarding subagent |
-| **2. Voice Onboarding** | 1. Click microphone button<br>2. Say "I want to be a fractional CFO"<br>3. Wait for HITL confirmation | - Voice transcription appears in chat<br>- Same HITL countdown card appears<br>- ProfileSidebar shows confirmed role |
-| **3. Voice/Chat Context Sharing** | 1. Complete onboarding via voice<br>2. Switch to chat and ask "What's my role?"<br>3. Agent should remember context | - Agent responds with correct role<br>- No re-prompting for already-provided info<br>- Thread ID is `deep_fractional_{userId}` |
-| **4. HITL Countdown Behavior** | 1. Trigger any HITL confirmation<br>2. Watch countdown timer<br>3. Hover over card (should pause)<br>4. Let timer expire | - Timer counts down from 15<br>- Pauses on hover<br>- Auto-cancels when expired |
-| **5. Job Search Flow** | 1. Complete onboarding<br>2. Ask "Find me CTO jobs in London"<br>3. Say "Save the second job" | - Job results display<br>- Save job HITL card appears (green)<br>- Saved job appears in profile |
-| **6. Multi-Modal Continuity** | 1. Start conversation in chat<br>2. Continue via voice<br>3. Return to chat | - Full context preserved<br>- No message duplication<br>- Smooth handoff |
+| Resource | URL |
+|----------|-----|
+| **Frontend (Live)** | https://deep-fractional-web.vercel.app |
+| **Agent API** | https://agent-production-ccb0.up.railway.app |
+| **Neon SQL Editor** | https://console.neon.tech/app/projects/sweet-hat-02969611/sql-editor |
+| **Railway Dashboard** | https://railway.app (check TAVILY_API_KEY is set) |
+| **Vercel Dashboard** | https://vercel.com (check deployment status) |
+| **GitHub Repo** | https://github.com/Londondannyboy/deep-fractional.quest |
 
-### What to Verify in Browser DevTools
+---
 
-```javascript
-// Check thread ID consistency
-// Open Console and look for:
-// CopilotWrapper mounting with threadId: deep_fractional_xxx
+### Pre-Test Checklist
 
-// Check Zep context (Network tab)
-// Look for /api/zep-context calls returning user facts
+Before testing, verify these are complete:
 
-// Check state sync
-// useCopilotReadable should show current onboarding state
+| Step | How to Verify | Status |
+|------|---------------|--------|
+| TAVILY_API_KEY in Railway | Railway Dashboard → Variables | ⬜ |
+| Jobs table created | Run `SELECT * FROM jobs LIMIT 1;` in Neon | ⬜ |
+| Saved_jobs table created | Run `SELECT * FROM saved_jobs LIMIT 1;` in Neon | ⬜ |
+| Railway redeployed | Check Railway logs for startup | ⬜ |
+| Vercel redeployed | Check Vercel dashboard | ⬜ |
+
+---
+
+### Test Scenario 1: Onboarding Flow (Chat)
+
+**URL:** https://deep-fractional-web.vercel.app
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Click "Sign in with Google" | Google OAuth popup appears |
+| 2 | Complete Google sign-in | Redirected back, UserButton shows avatar |
+| 3 | Type: "Hi, I want to find CTO roles" | Agent responds, asks about role |
+| 4 | Wait for HITL card | Purple card with "Confirm Role" appears |
+| 5 | Watch countdown | Timer counts down from 15 |
+| 6 | Hover over card | Timer PAUSES (shows "Paused") |
+| 7 | Click "Confirm" | ProfileSidebar updates with "CTO" ✓ |
+| 8 | Continue: "I want fractional work" | Trinity HITL card appears |
+| 9 | Confirm | ProfileSidebar shows "Fractional" ✓ |
+
+**What to check in DevTools (F12):**
+- Console: No red errors
+- Network: `/api/copilotkit` requests return 200
+- Network: Check response includes `onboarding` state updates
+
+---
+
+### Test Scenario 2: Voice Onboarding
+
+**URL:** https://deep-fractional-web.vercel.app
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Sign in with Google | Already signed in from Test 1 |
+| 2 | Click microphone button (bottom right) | Hume EVI connects, shows "Listening" |
+| 3 | Say: "I have 15 years experience in fintech" | Voice transcription appears in chat |
+| 4 | Wait for agent response | Agent responds via voice AND text |
+| 5 | HITL card appears | Same countdown card as chat |
+| 6 | Say "Yes, confirm" or click button | ProfileSidebar updates |
+
+**What to check:**
+- Voice and chat show same messages
+- HITL works identically in voice mode
+- No duplicate messages
+
+---
+
+### Test Scenario 3: Tavily Hybrid Job Search (NEW!)
+
+**URL:** https://deep-fractional-web.vercel.app
+
+**Prerequisites:** Complete onboarding first (role, trinity, experience, location)
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Type: "Find me CTO jobs in London" | Agent calls `hybrid_search_jobs` |
+| 2 | Wait for response | See: "Found X in database, Y from web" |
+| 3 | First time | Database: 0, Web: 5+ (Tavily results) |
+| 4 | Check message | "Saved N new jobs for future searches" |
+| 5 | Type: "Find CTO jobs in London" again | Database now has jobs! |
+| 6 | Type: "Save the first job" | Green HITL card appears |
+| 7 | Confirm save | Job saved to your profile |
+
+**What to verify in Neon SQL Editor:**
+```sql
+-- Check jobs were saved from Tavily
+SELECT title, company, source, created_at
+FROM jobs
+WHERE source = 'tavily'
+ORDER BY created_at DESC
+LIMIT 10;
+
+-- Check saved jobs for your user
+SELECT j.title, j.company, sj.status
+FROM saved_jobs sj
+JOIN jobs j ON sj.job_id = j.id
+LIMIT 10;
 ```
 
-### Known Behaviors
+**Expected Tavily behavior:**
+- First search: 0 database, 5-10 web results
+- Results auto-saved to database
+- Second search: Those jobs now in database
+- Job board URLs filtered (no LinkedIn, Indeed, etc.)
 
-1. **Anonymous users**: Get temporary thread IDs that reset on page refresh
-2. **HITL auto-cancel**: After 15 seconds without response, defaults to "cancel"
-3. **Voice sync delay**: Voice messages sync to chat within ~1 second
-4. **Summarization**: Kicks in automatically for conversations > 15 messages
+---
+
+### Test Scenario 4: Voice/Chat Context Sharing
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Complete onboarding via CHAT | Profile saved |
+| 2 | Refresh page | Session persists |
+| 3 | Switch to VOICE | Click microphone |
+| 4 | Say: "What's my role?" | Agent knows your role (CTO, etc.) |
+| 5 | Say: "Find me jobs" | Uses your profile for search |
+| 6 | Switch back to CHAT | Context preserved |
+
+**Why this works:**
+- Both use same `threadId`: `deep_fractional_{userId}`
+- Checkpointer persists conversation across modes
+- Zep provides cross-session memory
+
+---
+
+### Test Scenario 5: HITL Countdown Behavior
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Trigger any HITL (confirm role, save job) | Card appears with countdown |
+| 2 | Watch timer | Counts down from 15 to 0 |
+| 3 | Hover over card | Timer PAUSES |
+| 4 | Move mouse away | Timer RESUMES |
+| 5 | Let timer reach 0 | Auto-CANCELS (default behavior) |
+| 6 | Agent acknowledges | "No problem, we can confirm later" |
+
+**Color schemes by action:**
+- Purple: Onboarding confirmations
+- Green: Save job
+- Orange: Schedule session
+- Red: Cancel session
+
+---
+
+### Test Scenario 6: Coaching Flow
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Type: "I need a leadership coach" | Agent routes to coaching subagent |
+| 2 | Agent shows available coaches | List of coaches with specialties |
+| 3 | Type: "Tell me about the first coach" | Coach details displayed |
+| 4 | Type: "Schedule an intro call" | Orange HITL card for scheduling |
+| 5 | Confirm | Session scheduled |
+
+---
+
+### Known Behaviors & Edge Cases
+
+| Behavior | What Happens |
+|----------|--------------|
+| Anonymous user | Gets temporary thread, resets on refresh |
+| HITL timeout | Auto-cancels after 15 seconds |
+| Voice sync delay | ~1 second lag between voice and chat |
+| Tavily rate limit | Falls back to database-only search |
+| Long conversation | Auto-summarized after ~15 messages |
+| Tool call limit | Stops after 50 calls, warns at 40 |
+
+---
+
+### Debugging Checklist
+
+If something doesn't work:
+
+| Issue | Check |
+|-------|-------|
+| No jobs found | Is TAVILY_API_KEY set in Railway? |
+| Jobs not saving | Run migration SQL in Neon |
+| Voice not working | Check HUME_API_KEY in Vercel |
+| Auth failing | Check NEON_AUTH_BASE_URL in Vercel |
+| Agent errors | Check Railway logs: `railway logs -n 100` |
+| Frontend errors | Check Vercel deployment logs |
+
+---
+
+### DevTools Verification
+
+**Console (F12 → Console):**
+```
+✓ CopilotWrapper mounting with threadId: deep_fractional_xxx
+✓ No red errors
+```
+
+**Network (F12 → Network):**
+```
+✓ /api/copilotkit → 200 OK
+✓ /api/zep-context → 200 OK (if Zep configured)
+✓ /api/hume-token → 200 OK (for voice)
+```
+
+**Check Tavily is working:**
+Look for tool call in agent response:
+```json
+{
+  "tool": "hybrid_search_jobs",
+  "database_count": 0,
+  "web_count": 5,
+  "saved_to_db": 5
+}
+```
 
 ---
 
@@ -491,7 +672,7 @@ b153fb4 docs: comprehensive Phase 4 restart plan with Christian's patterns
 | **Code Complexity** | Lower (uses framework patterns) | Higher (more custom code) |
 | **Scalability** | Enterprise-ready (Railway + Vercel) | Moderate |
 
-**Score: Deep Fractional 8.5/10 vs estimated Pydantic AI approach 6/10**
+**Score: Deep Fractional 9/10 vs estimated Pydantic AI approach 6/10**
 
 The CopilotKit + Deep Agents approach provides:
 - More robust state management out-of-box
@@ -499,6 +680,60 @@ The CopilotKit + Deep Agents approach provides:
 - Voice integration via Hume EVI
 - Real-time UI updates via AG-UI protocol
 - Built-in middleware for token/cost management
+- Tavily hybrid search with auto-caching
+
+---
+
+## Phase 6 Roadmap (Next Steps)
+
+### Priority 1: UI/UX Polish
+
+| Task | Description | Complexity |
+|------|-------------|------------|
+| Job Cards Component | Display jobs in cards, not chat text | Medium |
+| `useCoAgentStateRender` | Show intermediate agent state | Medium |
+| Saved Jobs Dashboard | View/manage saved jobs in sidebar | Medium |
+| Profile Completion Widget | Visual progress through onboarding | Low |
+
+### Priority 2: Advanced Features
+
+| Task | Description | Complexity |
+|------|-------------|------------|
+| Trinity Life Goals | Expand Trinity beyond engagement type | Medium |
+| Resume Upload | Parse PDF resume for skills | High |
+| Job Match Scoring | ML-based profile-to-job matching | High |
+| Email Notifications | Alert when new matching jobs found | Medium |
+
+### Priority 3: Production Hardening
+
+| Task | Description | Complexity |
+|------|-------------|------------|
+| Rate Limiting | Protect Tavily from abuse | Low |
+| Error Boundaries | Graceful UI error handling | Low |
+| Analytics | Track user journey, feature usage | Medium |
+| A/B Testing | Test different onboarding flows | Medium |
+
+### Priority 4: Growth Features
+
+| Task | Description | Complexity |
+|------|-------------|------------|
+| Referral System | Invite other fractional execs | Medium |
+| Coach Marketplace | Coaches can create profiles | High |
+| Job Alerts | Daily/weekly job digest emails | Medium |
+| LinkedIn Integration | Import profile from LinkedIn | High |
+
+---
+
+## Recommended Phase 6 Focus
+
+Based on the CopilotKit example and user value:
+
+1. **Job Cards Component** - Display jobs visually (like their example)
+2. **Resume Upload** - Quick onboarding via PDF
+3. **Saved Jobs Dashboard** - Users need to see their saved jobs
+4. **`useCoAgentStateRender`** - Show agent "thinking" state
+
+**Estimated effort:** 1-2 sessions
 
 ---
 
