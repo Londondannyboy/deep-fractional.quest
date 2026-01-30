@@ -563,6 +563,27 @@ export default function Home() {
           <h1 className="text-xl font-bold text-slate-900">Fractional Quest</h1>
         </div>
 
+        {/* Auth Status */}
+        <div className="mb-4 p-3 rounded-lg bg-white border border-slate-200">
+          {session?.user ? (
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold">
+                {firstName?.[0]?.toUpperCase() || "U"}
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-slate-900">{session.user.name || session.user.email}</div>
+                <div className="text-xs text-slate-500">Signed in</div>
+              </div>
+              <a href="/auth/sign-out" className="text-xs text-slate-400 hover:text-slate-600">Sign out</a>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-600">Not signed in</span>
+              <a href="/auth/sign-in" className="text-sm font-medium text-indigo-600 hover:text-indigo-800">Sign in</a>
+            </div>
+          )}
+        </div>
+
         {/* Voice Chat Button */}
         <div className="mb-6">
           <VoiceInput
