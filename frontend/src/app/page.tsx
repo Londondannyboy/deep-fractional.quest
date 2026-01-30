@@ -7,6 +7,7 @@ import { TextMessage, Role } from "@copilotkit/runtime-client-gql";
 import { authClient } from "@/lib/auth/client";
 import { VoiceInput } from "@/components/VoiceInput";
 import { HITLCard } from "@/components/HITLCard";
+import { ProfileSidebar } from "@/components/ProfileSidebar";
 
 // Types matching backend state
 interface OnboardingState {
@@ -486,14 +487,6 @@ export default function Home() {
     },
   });
 
-  const steps = [
-    { key: "role_preference", label: "Role", value: onboarding.role_preference },
-    { key: "trinity", label: "Type", value: onboarding.trinity },
-    { key: "experience", label: "Experience", value: onboarding.experience_years ? `${onboarding.experience_years}y` : undefined },
-    { key: "location", label: "Location", value: onboarding.location },
-    { key: "search_prefs", label: "Prefs", value: onboarding.day_rate_min ? `${onboarding.day_rate_min}-${onboarding.day_rate_max}` : undefined },
-  ];
-
   return (
     <main className="flex min-h-screen">
       {/* Left: Profile Panel */}
@@ -533,50 +526,12 @@ export default function Home() {
           />
         </div>
 
-        {/* Progress Steps */}
-        <div className="mb-6">
-          <h2 className="text-sm font-semibold text-slate-700 mb-2">Onboarding Progress</h2>
-          <div className="space-y-2">
-            {steps.map((step, i) => (
-              <div
-                key={step.key}
-                className={`flex items-center gap-2 p-2 rounded ${
-                  step.value ? "bg-green-100" : i === (onboarding.current_step || 0) ? "bg-blue-100" : "bg-white"
-                }`}
-              >
-                <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    step.value ? "bg-green-500 text-white" : "bg-slate-300 text-slate-600"
-                  }`}
-                >
-                  {step.value ? "!" : i + 1}
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-slate-700">{step.label}</div>
-                  {step.value && (
-                    <div className="text-xs text-slate-500">{step.value}</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Profile Card */}
-        {onboarding.completed && (
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-700 mb-2">Your Profile</h2>
-            <div className="space-y-1 text-sm text-slate-600">
-              <div><strong>Role:</strong> {onboarding.role_preference?.toUpperCase()}</div>
-              <div><strong>Type:</strong> {onboarding.trinity}</div>
-              <div><strong>Experience:</strong> {onboarding.experience_years} years</div>
-              <div><strong>Industries:</strong> {onboarding.industries?.join(", ")}</div>
-              <div><strong>Location:</strong> {onboarding.location} ({onboarding.remote_preference})</div>
-              <div><strong>Rate:</strong> {onboarding.day_rate_min}-{onboarding.day_rate_max}/day</div>
-              <div><strong>Availability:</strong> {onboarding.availability}</div>
-            </div>
-          </div>
-        )}
+        {/* Profile Sidebar - shows confirmed data from database */}
+        <ProfileSidebar
+          onboarding={onboarding}
+          userName={firstName}
+          userId={userId}
+        />
       </div>
 
       {/* Right: Chat Panel */}
