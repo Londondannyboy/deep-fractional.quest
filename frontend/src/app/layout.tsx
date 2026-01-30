@@ -23,6 +23,7 @@ export default function RootLayout({
           authClient={authClient as any}
           redirectTo="/"
           emailOTP
+          socialProviders={["google"]}
         >
           <CopilotKit
             runtimeUrl="/api/copilotkit"
