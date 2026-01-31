@@ -4,9 +4,13 @@ import { NextRequest, NextResponse } from 'next/server';
 // Implements Christian Bromann's voice + LangGraph interrupt pattern
 // https://github.com/christian-bromann/createVoiceAgent
 
-const AGENT_URL = process.env.LANGGRAPH_DEPLOYMENT_URL;
-if (!AGENT_URL) {
-  console.error('[CLM] FATAL: LANGGRAPH_DEPLOYMENT_URL not set');
+const AGENT_URL = process.env.LANGGRAPH_DEPLOYMENT_URL || '';
+
+function getAgentUrl(): string {
+  if (!AGENT_URL) {
+    throw new Error('LANGGRAPH_DEPLOYMENT_URL not configured');
+  }
+  return AGENT_URL;
 }
 const ZEP_API_KEY = process.env.ZEP_API_KEY || '';
 
@@ -261,7 +265,7 @@ export async function POST(req: NextRequest) {
           },
         };
 
-        const agentResponse = await fetch(AGENT_URL, {
+        const agentResponse = await fetch(getAgentUrl(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
           body: JSON.stringify(resumeBody),
@@ -389,10 +393,10 @@ When users ask about jobs, USE THE search_jobs or hybrid_search_jobs TOOL to fin
       },
     };
 
-    console.log('[CLM] Calling DeepAgents at:', AGENT_URL);
+    console.log('[CLM] Calling DeepAgents at:', getAgentUrl());
 
     // Call the DeepAgents agent
-    const agentResponse = await fetch(AGENT_URL, {
+    const agentResponse = await fetch(getAgentUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
