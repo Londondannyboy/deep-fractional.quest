@@ -5,6 +5,7 @@ Exposes AG-UI endpoint for CopilotKit integration.
 """
 
 import os
+import asyncio
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
@@ -17,8 +18,27 @@ import uvicorn
 from ag_ui_langgraph import add_langgraph_fastapi_endpoint
 from copilotkit import LangGraphAGUIAgent
 
+from persistence.checkpointer import init_checkpointer, close_checkpointer, get_cached_checkpointer
+
+
+# =============================================================================
+# Synchronous Initialization
+# =============================================================================
+
+# Initialize checkpointer BEFORE building agent (critical for persistence)
+print("[INIT] Initializing checkpointer synchronously...")
+try:
+    asyncio.get_event_loop().run_until_complete(init_checkpointer())
+    print("[INIT] Checkpointer ready")
+except RuntimeError:
+    # No event loop - create one
+    asyncio.run(init_checkpointer())
+    print("[INIT] Checkpointer ready (new loop)")
+except Exception as e:
+    print(f"[INIT] Checkpointer warning: {e}")
+
+# NOW import and build agent (checkpointer is available)
 from agent import build_agent
-from persistence.checkpointer import init_checkpointer, close_checkpointer
 
 
 # =============================================================================
@@ -30,17 +50,11 @@ async def lifespan(app: FastAPI):
     """
     Manage application lifecycle.
 
-    - Initialize PostgreSQL checkpointer tables on startup
-    - Clean up connections on shutdown
+    Checkpointer is already initialized at module load.
+    Lifespan handles cleanup on shutdown.
     """
     print("[LIFESPAN] Starting up...")
-
-    # Initialize checkpointer (runs setup() for table creation)
-    try:
-        await init_checkpointer()
-        print("[LIFESPAN] Checkpointer initialized")
-    except Exception as e:
-        print(f"[LIFESPAN] Checkpointer init warning: {e}")
+    print(f"[LIFESPAN] Checkpointer available: {get_cached_checkpointer() is not None}")
 
     yield
 
