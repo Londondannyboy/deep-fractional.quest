@@ -3,30 +3,20 @@ PostgreSQL checkpointer for LangGraph conversation persistence.
 
 Uses AsyncPostgresSaver from langgraph-checkpoint-postgres to persist
 conversation state across server restarts.
+
+NOTE: langgraph-checkpoint-postgres 3.x's from_conn_string returns a
+context manager. We manually enter it to get a persistent instance.
 """
 
 import os
-import asyncio
-from typing import Optional
+from typing import Optional, Any
 
-import asyncpg
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 
-_pool: Optional[asyncpg.Pool] = None
 _checkpointer: Optional[AsyncPostgresSaver] = None
+_context_manager: Optional[Any] = None
 _setup_done: bool = False
-
-
-async def create_pool() -> asyncpg.Pool:
-    """Create and return an asyncpg connection pool."""
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        raise RuntimeError("DATABASE_URL not set for checkpointer")
-
-    pool = await asyncpg.create_pool(database_url)
-    print("[CHECKPOINTER] Created asyncpg connection pool")
-    return pool
 
 
 async def init_checkpointer() -> AsyncPostgresSaver:
@@ -36,14 +26,18 @@ async def init_checkpointer() -> AsyncPostgresSaver:
     Call this in FastAPI lifespan to ensure tables are ready.
     Returns the checkpointer instance for use with create_deep_agent.
     """
-    global _pool, _checkpointer, _setup_done
+    global _checkpointer, _context_manager, _setup_done
 
-    if _pool is None:
-        _pool = await create_pool()
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL not set for checkpointer")
 
     if _checkpointer is None:
-        _checkpointer = AsyncPostgresSaver(_pool)
-        print("[CHECKPOINTER] Created AsyncPostgresSaver")
+        # langgraph-checkpoint-postgres 3.x: from_conn_string returns async context manager
+        # We manually enter it to get a persistent checkpointer instance
+        _context_manager = AsyncPostgresSaver.from_conn_string(database_url)
+        _checkpointer = await _context_manager.__aenter__()
+        print("[CHECKPOINTER] Created AsyncPostgresSaver (entered context)")
 
     # Setup tables on first use
     if not _setup_done:
@@ -78,18 +72,19 @@ async def get_checkpointer() -> AsyncPostgresSaver:
 
 
 async def close_checkpointer():
-    """Close the checkpointer connection pool."""
-    global _pool, _checkpointer, _setup_done
+    """Close the checkpointer connection."""
+    global _checkpointer, _context_manager, _setup_done
 
-    if _pool is not None:
+    if _context_manager is not None:
         try:
-            await _pool.close()
-            print("[CHECKPOINTER] Connection pool closed")
+            # Properly exit the async context manager
+            await _context_manager.__aexit__(None, None, None)
+            print("[CHECKPOINTER] Closed checkpointer context")
         except Exception as e:
             print(f"[CHECKPOINTER] Close warning: {e}")
         finally:
-            _pool = None
             _checkpointer = None
+            _context_manager = None
             _setup_done = False
 
 
