@@ -195,13 +195,20 @@ ${greetingInstruction}
         ? `${firstName}|${stableSessionId}${pageContextPart}`
         : `|${stableSessionId}${pageContextPart}`;
 
+      // IMPORTANT: CLM (Custom Language Model) URL must be configured in Hume Dashboard
+      // Config ID: 5900eabb-8de1-42cf-ba18-3a718257b3e7
+      // CLM URL should be: https://agent.fractional.quest/chat/completions
+      // See: https://dev.hume.ai/docs/speech-to-speech-evi/guides/custom-language-model
       const configId = process.env.NEXT_PUBLIC_HUME_CONFIG_ID;
 
       console.log("[VOICE] Got token, connecting with session:", customSessionId);
       console.log("[VOICE] Quick reconnect?", isQuickReconnect, "Was greeted?", wasGreeted);
       console.log("[VOICE] User authenticated:", !!userId, "userId:", userId || 'anonymous');
+      console.log("[VOICE] Using Hume config:", configId || 'default');
+      console.log("[VOICE] NOTE: CLM endpoint must be configured in Hume Dashboard for this config");
 
       // Connect with token auth and session settings
+      // CLM URL is configured in Hume Dashboard, not here in code
       await connect({
         auth: { type: "accessToken", value: accessToken },
         ...(configId && { configId }),

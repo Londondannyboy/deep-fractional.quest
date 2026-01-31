@@ -77,6 +77,79 @@ Production-ready fractional executive career platform using CopilotKit + LangGra
 
 ---
 
+## HITL Integration Guide (CopilotKit + LangGraph)
+
+### Reference: Chan Meng's HITL Guide (January 2026)
+
+When implementing HITL with LangGraph.js + CopilotKit, there's a **toolCallId vs tool_call_id** field naming mismatch:
+- LangGraph.js/OpenAI uses `tool_call_id` (snake_case)
+- CopilotKit expects `toolCallId` (camelCase)
+
+**Key Insight:** For operations requiring human approval, use **dedicated graph nodes** instead of tools.
+
+### Pattern: Dedicated Node for HITL (LangGraph.js)
+```typescript
+// Route from START to dedicated node (bypass chat_node)
+function routeFromStart(state) {
+  if (isOutlineRequest(state)) return "outline_node";  // HITL operation
+  return "chat_node";  // Regular chat
+}
+
+// Dedicated node for HITL
+async function outlineNode(state, config) {
+  // 1. Perform operation with direct LLM call (no tool calling)
+  const result = await model.invoke([...]);
+
+  // 2. Set pendingContent for frontend detection
+  const pendingContent = { type: "outline", content: result };
+
+  // 3. Emit state to frontend
+  await copilotkitEmitState(config, { ...state, pendingContent });
+
+  // 4. Return AIMessage (NOT ToolMessage)
+  return {
+    messages: [new AIMessage({ content: "Please review above." })],
+    pendingContent,
+  };
+}
+```
+
+### Frontend Detection
+```typescript
+useCoAgentStateRender({
+  name: "agent_name",
+  render: ({ state }) => {
+    if (state?.pendingContent?.type === "outline") {
+      return <ApprovalCard content={state.pendingContent.content} />;
+    }
+    return null;
+  },
+});
+```
+
+**Note:** Our Python backend uses `interrupt_on` parameter with `create_deep_agent()`, which works differently. The above pattern is for LangGraph.js.
+
+---
+
+## Christian Bromann's GitHub Repositories
+
+| Repository | URL | Purpose |
+|------------|-----|---------|
+| **langchat** | https://github.com/christian-bromann/langchat | HITL patterns for LangChain agents |
+| **createVoiceAgent** | https://github.com/christian-bromann/createVoiceAgent | Voice agent harness for LangChain + Hume |
+| **copilotkit-deepagents** | https://github.com/CopilotKit/copilotkit-deepagents | Main CopilotKit + Deep Agents example |
+
+### Key Insights from createVoiceAgent
+
+Christian's `createVoiceAgent` implements a provider-agnostic voice pipeline:
+```
+Audio Input → [beforeSTT] → STT → [afterSTT] → Agent → [beforeTTS] → TTS → [afterTTS] → Audio Output
+```
+
+**Voice HITL Pattern**: When the agent needs human confirmation, it **speaks the prompt** and waits for voice input to confirm/deny. This is different from chat HITL which shows UI pills.
+
+---
+
 ## Architecture (Christian's CopilotKit Pattern)
 
 ```
@@ -125,6 +198,56 @@ Production-ready fractional executive career platform using CopilotKit + LangGra
 |  Gemini 2.0 Flash                            |
 +----------------------------------------------+
 ```
+
+---
+
+## Voice HITL Architecture (Important Limitation)
+
+### Chat HITL Flow (Works)
+```
+CopilotChat → AG-UI → Agent (interrupt_on) → useHumanInTheLoop → HITLCard UI → User confirms
+```
+This flow works because CopilotKit's frontend can intercept the interrupt and show UI.
+
+### Voice HITL Flow (Limited)
+```
+Hume EVI → CLM endpoint → Agent → Text response → Hume speaks
+```
+The CLM endpoint is a simple proxy that returns text. It **cannot** trigger CopilotKit's `useHumanInTheLoop` hooks because:
+1. Voice goes through Hume's pipeline, not CopilotKit's
+2. CLM only returns text, not AG-UI events
+3. There's no UI layer to show confirmation cards
+
+### Voice HITL Solutions
+
+**Option 1: Spoken Confirmations (Christian's Pattern)**
+Agent speaks: "I'd like to save CTO as your role. Say 'yes' to confirm or 'no' to cancel."
+User speaks: "Yes"
+Agent proceeds.
+
+**Option 2: Hybrid Mode**
+When HITL needed, agent responds: "I need you to confirm this in the chat panel."
+User switches to chat, sees HITLCard, confirms.
+
+**Current State:** Voice HITL shows confirmation in chat (via message sync), but countdown timer doesn't pause for voice.
+
+---
+
+## Hume CLM Configuration (Critical)
+
+The CLM (Custom Language Model) URL **must be configured in the Hume Dashboard**, not in code.
+
+**Steps to configure:**
+1. Go to [Hume Dashboard](https://beta.hume.ai/configs)
+2. Find config ID: `5900eabb-8de1-42cf-ba18-3a718257b3e7`
+3. Edit the config
+4. In "Set up LLM" step, select **Custom Language Model**
+5. Enter URL: `https://agent.fractional.quest/chat/completions`
+6. Save
+
+**Without this configuration, Hume uses its built-in model** and your agent is never called.
+
+See: https://dev.hume.ai/docs/speech-to-speech-evi/guides/custom-language-model
 
 ---
 

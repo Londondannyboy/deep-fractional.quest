@@ -154,14 +154,18 @@ ${pageContext.totalJobs ? `- Total relevant items: ${pageContext.totalJobs}` : '
     }
 
     // Add system context as a developer message
+    // CRITICAL: Include user_id so the LLM can pass it to tools for database persistence
     const systemContext = `You are a helpful career advisor for a fractional executive platform.
 ${firstName ? `The user's name is ${firstName}.` : ''}
+${userId ? `CRITICAL - USER ID FOR TOOLS: ${userId}
+When calling ANY tool that accepts user_id, you MUST pass this user_id: "${userId}"
+This enables saving data to the user's profile in the database.` : 'User is not logged in - data will not persist.'}
 ${zepContext}
 ${pageContextString}
 
 IMPORTANT: Keep responses concise for voice - 1-2 sentences unless more detail is requested.
 Help users with onboarding, finding jobs, and booking coaching sessions.
-When users ask about jobs, USE THE search_jobs TOOL to find real jobs from the database!`;
+When users ask about jobs, USE THE search_jobs or hybrid_search_jobs TOOL to find real jobs from the database!`;
 
     aguiMessages.push({
       id: `sys_${Date.now()}`,
