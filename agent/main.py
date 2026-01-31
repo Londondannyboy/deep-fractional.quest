@@ -26,14 +26,34 @@ from persistence.checkpointer import init_checkpointer, close_checkpointer, get_
 # =============================================================================
 
 # Initialize checkpointer BEFORE building agent (critical for persistence)
+# Handle both cases: running under uvicorn (has loop) or directly (no loop)
 print("[INIT] Initializing checkpointer synchronously...")
+
+
+def _init_checkpointer_sync():
+    """Initialize checkpointer, handling event loop edge cases."""
+    try:
+        # Try to get existing loop
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Loop is running (uvicorn) - use nest_asyncio pattern
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                future = pool.submit(asyncio.run, init_checkpointer())
+                future.result(timeout=30)
+            print("[INIT] Checkpointer ready (thread pool)")
+        else:
+            # Loop exists but not running - use run_until_complete
+            loop.run_until_complete(init_checkpointer())
+            print("[INIT] Checkpointer ready (existing loop)")
+    except RuntimeError:
+        # No event loop at all - create one
+        asyncio.run(init_checkpointer())
+        print("[INIT] Checkpointer ready (new loop)")
+
+
 try:
-    asyncio.get_event_loop().run_until_complete(init_checkpointer())
-    print("[INIT] Checkpointer ready")
-except RuntimeError:
-    # No event loop - create one
-    asyncio.run(init_checkpointer())
-    print("[INIT] Checkpointer ready (new loop)")
+    _init_checkpointer_sync()
 except Exception as e:
     print(f"[INIT] Checkpointer warning: {e}")
 
