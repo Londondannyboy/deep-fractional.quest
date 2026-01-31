@@ -123,7 +123,7 @@ export default function Home() {
             onConfirm={() => respond({ confirmed: true })}
             onCancel={() => respond({ confirmed: false })}
             countdownSeconds={15}
-            autoAction="cancel"
+            autoAction="confirm"
             colorScheme="blue"
           />
         );
@@ -151,7 +151,7 @@ export default function Home() {
             onConfirm={() => respond({ confirmed: true })}
             onCancel={() => respond({ confirmed: false })}
             countdownSeconds={15}
-            autoAction="cancel"
+            autoAction="confirm"
             colorScheme="purple"
           />
         );
@@ -181,7 +181,7 @@ export default function Home() {
             onConfirm={() => respond({ confirmed: true })}
             onCancel={() => respond({ confirmed: false })}
             countdownSeconds={15}
-            autoAction="cancel"
+            autoAction="confirm"
             colorScheme="green"
           />
         );
@@ -210,7 +210,7 @@ export default function Home() {
             onConfirm={() => respond({ confirmed: true })}
             onCancel={() => respond({ confirmed: false })}
             countdownSeconds={15}
-            autoAction="cancel"
+            autoAction="confirm"
             colorScheme="orange"
           />
         );
@@ -240,7 +240,7 @@ export default function Home() {
             onConfirm={() => respond({ confirmed: true })}
             onCancel={() => respond({ confirmed: false })}
             countdownSeconds={15}
-            autoAction="cancel"
+            autoAction="confirm"
             colorScheme="teal"
           />
         );
@@ -268,7 +268,7 @@ export default function Home() {
             onConfirm={() => respond({ confirmed: true })}
             onCancel={() => respond({ confirmed: false })}
             countdownSeconds={20}
-            autoAction="cancel"
+            autoAction="confirm"
             colorScheme="blue"
           />
         );
@@ -303,7 +303,7 @@ export default function Home() {
             onConfirm={() => respond({ confirmed: true })}
             onCancel={() => respond({ confirmed: false })}
             countdownSeconds={15}
-            autoAction="cancel"
+            autoAction="confirm"
             colorScheme="green"
           />
         );
@@ -335,7 +335,7 @@ export default function Home() {
             onConfirm={() => respond({ confirmed: true })}
             onCancel={() => respond({ confirmed: false })}
             countdownSeconds={15}
-            autoAction="cancel"
+            autoAction="confirm"
             colorScheme="orange"
           />
         );
@@ -380,7 +380,7 @@ export default function Home() {
             onConfirm={() => respond({ confirmed: true })}
             onCancel={() => respond({ confirmed: false })}
             countdownSeconds={20}
-            autoAction="cancel"
+            autoAction="confirm"
             colorScheme="purple"
           />
         );
@@ -411,7 +411,7 @@ export default function Home() {
             onConfirm={() => respond({ confirmed: true })}
             onCancel={() => respond({ confirmed: false })}
             countdownSeconds={15}
-            autoAction="cancel"
+            autoAction="confirm"
             colorScheme="red"
           />
         );
